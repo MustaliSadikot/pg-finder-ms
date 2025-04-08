@@ -134,7 +134,7 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ onFilter, maxPrice = 1500
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">All</SelectItem>
+                      <SelectItem value="all">All</SelectItem>
                       <SelectItem value="male">Male Only</SelectItem>
                       <SelectItem value="female">Female Only</SelectItem>
                       <SelectItem value="any">Any (Co-ed)</SelectItem>
