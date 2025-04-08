@@ -1,4 +1,3 @@
-
 import { User, PGListing, Booking, UserRole, FilterOptions } from '../types';
 import { mockUsers, mockPGListings, mockBookings } from '../utils/mockData';
 

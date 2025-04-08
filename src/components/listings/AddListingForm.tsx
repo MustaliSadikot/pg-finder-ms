@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -29,6 +28,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { pgListingsAPI } from "@/services/api";
 import { useToast } from "@/components/ui/use-toast";
+import { uploadImage } from "@/services/storage";
+import { Loader2, UploadCloud } from "lucide-react";
 
 const commonAmenities = [
   { id: "wifi", label: "WiFi" },
@@ -48,7 +49,8 @@ const formSchema = z.object({
   price: z.coerce.number().min(1, "Price must be greater than 0"),
   genderPreference: z.enum(["male", "female", "any"]),
   amenities: z.array(z.string()).min(1, "Select at least one amenity"),
-  imageUrl: z.string().url("Please enter a valid image URL"),
+  imageFile: z.instanceof(FileList).refine(files => files.length > 0, "Image is required").optional(),
+  imageUrl: z.string().optional(),
   availability: z.boolean(),
   description: z.string().min(10, "Description must be at least 10 characters"),
 });
@@ -60,6 +62,8 @@ const AddListingForm: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -75,6 +79,20 @@ const AddListingForm: React.FC = () => {
     },
   });
 
+  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    
+    if (files && files.length > 0) {
+      const file = files[0];
+      // Create a preview URL for the selected image
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
+      
+      // Set the value in the form
+      form.setValue("imageFile", files);
+    }
+  };
+
   const onSubmit = async (data: FormData) => {
     if (!user) {
       toast({
@@ -88,6 +106,27 @@ const AddListingForm: React.FC = () => {
     setIsSubmitting(true);
 
     try {
+      let imageUrl = data.imageUrl || "";
+      
+      // If there's a file selected, upload it first
+      if (data.imageFile && data.imageFile.length > 0) {
+        setIsUploading(true);
+        const uploadedUrl = await uploadImage(data.imageFile[0], user.id);
+        setIsUploading(false);
+        
+        if (uploadedUrl) {
+          imageUrl = uploadedUrl;
+        } else {
+          toast({
+            title: "Image upload failed",
+            description: "There was an error uploading your image. Please try again.",
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       await pgListingsAPI.addListing({
         ownerId: user.id,
         name: data.name,
@@ -95,7 +134,7 @@ const AddListingForm: React.FC = () => {
         price: data.price,
         genderPreference: data.genderPreference,
         amenities: data.amenities,
-        imageUrl: data.imageUrl,
+        imageUrl: imageUrl,
         availability: data.availability,
         description: data.description,
       });
@@ -197,15 +236,44 @@ const AddListingForm: React.FC = () => {
 
               <FormField
                 control={form.control}
-                name="imageUrl"
-                render={({ field }) => (
+                name="imageFile"
+                render={() => (
                   <FormItem>
-                    <FormLabel>Image URL</FormLabel>
+                    <FormLabel>PG Image</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter image URL" {...field} />
+                      <div className="flex flex-col space-y-2">
+                        <div className="flex items-center justify-center w-full">
+                          <label htmlFor="image-upload" className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600">
+                            {imagePreview ? (
+                              <div className="relative w-full h-full">
+                                <img 
+                                  src={imagePreview} 
+                                  alt="PG Preview" 
+                                  className="object-cover w-full h-full rounded-lg" 
+                                />
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                <UploadCloud className="w-8 h-8 mb-2 text-gray-500 dark:text-gray-400" />
+                                <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
+                                  <span className="font-semibold">Click to upload</span> or drag and drop
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">PNG, JPG or JPEG (MAX. 5MB)</p>
+                              </div>
+                            )}
+                            <input 
+                              id="image-upload" 
+                              type="file" 
+                              className="hidden" 
+                              accept="image/png, image/jpeg, image/jpg"
+                              onChange={handleImageChange}
+                            />
+                          </label>
+                        </div>
+                      </div>
                     </FormControl>
                     <FormDescription>
-                      Provide a URL to an image of your PG
+                      Upload an image of your PG accommodation
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -314,8 +382,15 @@ const AddListingForm: React.FC = () => {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Adding..." : "Add PG Listing"}
+              <Button type="submit" disabled={isSubmitting || isUploading}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    {isUploading ? "Uploading..." : "Adding..."}
+                  </>
+                ) : (
+                  "Add PG Listing"
+                )}
               </Button>
             </div>
           </form>
