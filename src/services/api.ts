@@ -1,5 +1,7 @@
+
 import { User, PGListing, Booking, UserRole, FilterOptions } from '../types';
 import { mockUsers, mockPGListings, mockBookings } from '../utils/mockData';
+import { deleteImage } from './storage';
 
 // Helper to simulate API delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -101,6 +103,27 @@ export const pgListingsAPI = {
     localStorage.setItem(LISTINGS_KEY, JSON.stringify(updatedListings));
     
     return listing;
+  },
+  
+  deleteListing: async (id: string): Promise<boolean> => {
+    await delay(500);
+    
+    const listings = await pgListingsAPI.getListings();
+    const listingToDelete = listings.find(l => l.id === id);
+    
+    if (!listingToDelete) {
+      return false;
+    }
+    
+    // Delete the image associated with the listing if it exists
+    if (listingToDelete.imageUrl) {
+      await deleteImage(listingToDelete.imageUrl);
+    }
+    
+    const updatedListings = listings.filter(l => l.id !== id);
+    localStorage.setItem(LISTINGS_KEY, JSON.stringify(updatedListings));
+    
+    return true;
   },
   
   getListingById: async (id: string): Promise<PGListing | null> => {
