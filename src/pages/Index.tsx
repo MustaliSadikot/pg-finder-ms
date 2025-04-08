@@ -42,7 +42,7 @@ const Index: React.FC = () => {
                 </Link>
               </Button>
               {!isAuthenticated && (
-                <Button asChild size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
+                <Button asChild size="lg" variant="outline" className="bg-white border-white text-pgfinder-primary hover:bg-gray-100">
                   <Link to="/register">
                     <Home className="h-5 w-5 mr-2" />
                     List Your PG
@@ -139,7 +139,7 @@ const Index: React.FC = () => {
                 <Link to="/register">Create an Account</Link>
               </Button>
             )}
-            <Button asChild size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
+            <Button asChild size="lg" variant="outline" className="border-white text-black hover:bg-white/10">
               <Link to="/listings">Browse Listings</Link>
             </Button>
           </div>
