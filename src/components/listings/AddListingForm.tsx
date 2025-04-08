@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -29,7 +30,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { pgListingsAPI } from "@/services/api";
 import { useToast } from "@/components/ui/use-toast";
 import { uploadImage } from "@/services/storage";
-import { Loader2, UploadCloud } from "lucide-react";
+import { Loader2, UploadCloud, Link as LinkIcon } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const commonAmenities = [
   { id: "wifi", label: "WiFi" },
@@ -49,10 +51,13 @@ const formSchema = z.object({
   price: z.coerce.number().min(1, "Price must be greater than 0"),
   genderPreference: z.enum(["male", "female", "any"]),
   amenities: z.array(z.string()).min(1, "Select at least one amenity"),
-  imageFile: z.instanceof(FileList).refine(files => files.length > 0, "Image is required").optional(),
-  imageUrl: z.string().optional(),
+  imageFile: z.instanceof(FileList).optional(),
+  imageUrl: z.string().url("Please enter a valid URL").optional(),
   availability: z.boolean(),
   description: z.string().min(10, "Description must be at least 10 characters"),
+}).refine(data => data.imageFile?.length > 0 || data.imageUrl, {
+  message: "Either upload an image or provide an image URL",
+  path: ["imageUrl"], 
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -64,6 +69,7 @@ const AddListingForm: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [imageTab, setImageTab] = useState<"upload" | "url">("upload");
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -90,6 +96,17 @@ const AddListingForm: React.FC = () => {
       
       // Set the value in the form
       form.setValue("imageFile", files);
+      form.setValue("imageUrl", ""); // Clear URL input when file is selected
+    }
+  };
+
+  const handleImageUrlChange = (url: string) => {
+    if (url) {
+      setImagePreview(url);
+      // Clear file input when URL is used
+      form.setValue("imageFile", undefined);
+    } else {
+      setImagePreview(null);
     }
   };
 
@@ -238,42 +255,91 @@ const AddListingForm: React.FC = () => {
                 control={form.control}
                 name="imageFile"
                 render={() => (
-                  <FormItem>
+                  <FormItem className="col-span-1 md:col-span-2">
                     <FormLabel>PG Image</FormLabel>
                     <FormControl>
-                      <div className="flex flex-col space-y-2">
-                        <div className="flex items-center justify-center w-full">
-                          <label htmlFor="image-upload" className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600">
-                            {imagePreview ? (
-                              <div className="relative w-full h-full">
-                                <img 
-                                  src={imagePreview} 
-                                  alt="PG Preview" 
-                                  className="object-cover w-full h-full rounded-lg" 
+                      <div className="space-y-4">
+                        <Tabs value={imageTab} onValueChange={(v) => setImageTab(v as "upload" | "url")}>
+                          <TabsList className="grid grid-cols-2">
+                            <TabsTrigger value="upload">Upload Image</TabsTrigger>
+                            <TabsTrigger value="url">Image URL</TabsTrigger>
+                          </TabsList>
+                          <TabsContent value="upload" className="mt-4">
+                            <div className="flex items-center justify-center w-full">
+                              <label htmlFor="image-upload" className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600">
+                                {imagePreview && imageTab === "upload" ? (
+                                  <div className="relative w-full h-full">
+                                    <img 
+                                      src={imagePreview} 
+                                      alt="PG Preview" 
+                                      className="object-cover w-full h-full rounded-lg" 
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                    <UploadCloud className="w-8 h-8 mb-2 text-gray-500 dark:text-gray-400" />
+                                    <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
+                                      <span className="font-semibold">Click to upload</span> or drag and drop
+                                    </p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">PNG, JPG or JPEG (MAX. 5MB)</p>
+                                  </div>
+                                )}
+                                <input 
+                                  id="image-upload" 
+                                  type="file" 
+                                  className="hidden" 
+                                  accept="image/png, image/jpeg, image/jpg"
+                                  onChange={handleImageChange}
                                 />
-                              </div>
-                            ) : (
-                              <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                <UploadCloud className="w-8 h-8 mb-2 text-gray-500 dark:text-gray-400" />
-                                <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
-                                  <span className="font-semibold">Click to upload</span> or drag and drop
-                                </p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">PNG, JPG or JPEG (MAX. 5MB)</p>
-                              </div>
-                            )}
-                            <input 
-                              id="image-upload" 
-                              type="file" 
-                              className="hidden" 
-                              accept="image/png, image/jpeg, image/jpg"
-                              onChange={handleImageChange}
+                              </label>
+                            </div>
+                          </TabsContent>
+                          <TabsContent value="url" className="mt-4">
+                            <FormField
+                              control={form.control}
+                              name="imageUrl"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <div className="flex flex-col space-y-4">
+                                    <div className="flex items-center space-x-2">
+                                      <LinkIcon className="h-4 w-4 text-muted-foreground" />
+                                      <Input
+                                        placeholder="https://example.com/image.jpg"
+                                        {...field}
+                                        onChange={(e) => {
+                                          field.onChange(e);
+                                          handleImageUrlChange(e.target.value);
+                                        }}
+                                      />
+                                    </div>
+                                    {imagePreview && imageTab === "url" && (
+                                      <div className="h-40 w-full">
+                                        <img 
+                                          src={imagePreview}
+                                          alt="Preview" 
+                                          className="h-full w-full object-cover rounded-md"
+                                          onError={() => {
+                                            setImagePreview(null);
+                                            toast({
+                                              title: "Image Error",
+                                              description: "Could not load image from provided URL",
+                                              variant: "destructive",
+                                            });
+                                          }}
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
                             />
-                          </label>
-                        </div>
+                          </TabsContent>
+                        </Tabs>
                       </div>
                     </FormControl>
                     <FormDescription>
-                      Upload an image of your PG accommodation
+                      Upload an image of your PG accommodation or provide an image URL
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
