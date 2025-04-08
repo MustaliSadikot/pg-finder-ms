@@ -130,12 +130,12 @@ const Dashboard: React.FC = () => {
             <div className="bg-white rounded-lg p-6 shadow-sm border">
               <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Link to="/listings">
-                  <Button variant="outline" className="w-full justify-start">
+                <Button asChild variant="outline" className="w-full justify-start">
+                  <Link to="/listings">
                     <Home className="mr-2 h-4 w-4" />
                     Browse PG Listings
-                  </Button>
-                </Link>
+                  </Link>
+                </Button>
                 {isOwner() ? (
                   <Link to="/add-listing">
                     <Button variant="outline" className="w-full justify-start">

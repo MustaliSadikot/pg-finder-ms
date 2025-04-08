@@ -8,8 +8,11 @@ import { PGListing } from "@/types";
 import PGCard from "@/components/listings/PGCard";
 import { useQuery } from "@tanstack/react-query";
 import { SearchIcon, Home, MapPin, Users } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index: React.FC = () => {
+  const { isAuthenticated } = useAuth();
+  
   const { data: featuredListings } = useQuery({
     queryKey: ["featuredListings"],
     queryFn: async () => {
@@ -38,12 +41,14 @@ const Index: React.FC = () => {
                   Find PGs
                 </Link>
               </Button>
-              <Button asChild size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
-                <Link to="/register">
-                  <Home className="h-5 w-5 mr-2" />
-                  List Your PG
-                </Link>
-              </Button>
+              {!isAuthenticated && (
+                <Button asChild size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
+                  <Link to="/register">
+                    <Home className="h-5 w-5 mr-2" />
+                    List Your PG
+                  </Link>
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -129,9 +134,11 @@ const Index: React.FC = () => {
             Join thousands of happy tenants who found their perfect PG accommodation through our platform.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Button asChild size="lg" className="bg-pgfinder-secondary hover:bg-pgfinder-secondary/90 text-white">
-              <Link to="/register">Create an Account</Link>
-            </Button>
+            {!isAuthenticated && (
+              <Button asChild size="lg" className="bg-pgfinder-secondary hover:bg-pgfinder-secondary/90 text-white">
+                <Link to="/register">Create an Account</Link>
+              </Button>
+            )}
             <Button asChild size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
               <Link to="/listings">Browse Listings</Link>
             </Button>
