@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, Bed as BedIcon, InfoIcon } from "lucide-react";
+import { Trash2, Plus, Bed as BedIcon, Info } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 interface RoomManagementProps {
@@ -442,7 +442,7 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
                             >
                               {bed.isOccupied ? "Occupied" : "Vacant"}
                               {bedsWithBookings[bed.id] && (
-                                <InfoIcon className="ml-1 h-3 w-3" title="This bed has an active booking" />
+                                <Info className="ml-1 h-3 w-3" aria-label="This bed has an active booking" />
                               )}
                             </Badge>
                           </div>
@@ -452,7 +452,7 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
                             className="h-8 w-8 text-red-500"
                             onClick={() => handleDeleteBed(bed.id, room.id)}
                             disabled={bedsWithBookings[bed.id]}
-                            title={bedsWithBookings[bed.id] ? "Cannot delete bed with active booking" : "Delete bed"}
+                            aria-label={bedsWithBookings[bed.id] ? "Cannot delete bed with active booking" : "Delete bed"}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>

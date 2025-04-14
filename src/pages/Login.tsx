@@ -2,14 +2,16 @@
 import React from "react";
 import Layout from "@/components/common/Layout";
 import LoginForm from "@/components/auth/LoginForm";
-import { useAuth } from "@/contexts/AuthContext";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 
 const Login: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+  // We'll use the local storage check instead of useAuth to avoid circular dependency
+  const isAuthenticated = localStorage.getItem("pgfinder_auth") !== null;
+  const location = useLocation();
+  const from = location.state?.from || "/dashboard";
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={from} replace />;
   }
 
   return (
