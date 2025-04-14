@@ -1,12 +1,13 @@
-
 import React, { useState, useEffect } from "react";
 import { Room, Bed as BedType } from "@/types";
 import { roomAPI, bedAPI } from "@/services/roomApi";
+import { bookingsAPI } from "@/services/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -14,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, Bed as BedIcon } from "lucide-react";
+import { Trash2, Plus, Bed as BedIcon, InfoIcon } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 interface RoomManagementProps {
@@ -38,6 +39,7 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
   });
   const [isAddingRoom, setIsAddingRoom] = useState(false);
   const [isAddingBed, setIsAddingBed] = useState(false);
+  const [bedsWithBookings, setBedsWithBookings] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
   useEffect(() => {
@@ -50,13 +52,24 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
       const roomsData = await roomAPI.getRoomsByPGId(pgId);
       setRooms(roomsData);
 
-      // Load beds for each room
       const bedsData: Record<string, BedType[]> = {};
       for (const room of roomsData) {
         const roomBeds = await bedAPI.getBedsByRoomId(room.id);
         bedsData[room.id] = roomBeds;
       }
       setBeds(bedsData);
+
+      const bookings = await bookingsAPI.getPGBookings(pgId);
+      const confirmedBookings = bookings.filter(booking => booking.status === 'confirmed');
+      
+      const bedBookings: Record<string, boolean> = {};
+      confirmedBookings.forEach(booking => {
+        if (booking.bedId) {
+          bedBookings[booking.bedId] = true;
+        }
+      });
+      
+      setBedsWithBookings(bedBookings);
     } catch (error) {
       console.error("Error loading rooms:", error);
       toast({
@@ -194,6 +207,15 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
   };
 
   const toggleBedOccupancy = async (bed: BedType) => {
+    if (bedsWithBookings[bed.id] && !bed.isOccupied) {
+      toast({
+        title: "Cannot change status",
+        description: "This bed has an active booking and cannot be changed manually.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const updatedBed = { ...bed, isOccupied: !bed.isOccupied };
       await bedAPI.updateBed(updatedBed);
@@ -256,6 +278,9 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Add New Room</DialogTitle>
+                <DialogDescription>
+                  Fill out the details to add a new room to your PG.
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
@@ -307,6 +332,9 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Add New Bed</DialogTitle>
+                <DialogDescription>
+                  Add a new bed to one of your rooms.
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
@@ -409,10 +437,13 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
                                 bed.isOccupied
                                   ? "bg-red-100 text-red-800 hover:bg-red-200"
                                   : "bg-green-100 text-green-800 hover:bg-green-200"
-                              }`}
+                              } ${bedsWithBookings[bed.id] ? "opacity-50" : ""}`}
                               onClick={() => toggleBedOccupancy(bed)}
                             >
                               {bed.isOccupied ? "Occupied" : "Vacant"}
+                              {bedsWithBookings[bed.id] && (
+                                <InfoIcon className="ml-1 h-3 w-3" title="This bed has an active booking" />
+                              )}
                             </Badge>
                           </div>
                           <Button
@@ -420,6 +451,8 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
                             size="icon"
                             className="h-8 w-8 text-red-500"
                             onClick={() => handleDeleteBed(bed.id, room.id)}
+                            disabled={bedsWithBookings[bed.id]}
+                            title={bedsWithBookings[bed.id] ? "Cannot delete bed with active booking" : "Delete bed"}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>

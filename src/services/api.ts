@@ -1,6 +1,7 @@
 import { User, PGListing, Booking, UserRole, FilterOptions } from '../types';
 import { mockUsers, mockPGListings, mockBookings } from '../utils/mockData';
 import { deleteImage } from './storage';
+import { bedAPI } from './roomApi';
 
 // Helper to simulate API delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -236,10 +237,35 @@ export const bookingsAPI = {
       throw new Error('Booking not found');
     }
     
+    const booking = bookings[bookingIndex];
     const updatedBooking = {
-      ...bookings[bookingIndex],
+      ...booking,
       status,
     };
+    
+    // If status is confirmed and there's a bedId, update the bed occupancy
+    if (status === 'confirmed' && booking.bedId) {
+      const bed = await bedAPI.getBedById(booking.bedId);
+      if (bed) {
+        // Mark the bed as occupied
+        await bedAPI.updateBed({
+          ...bed,
+          isOccupied: true
+        });
+      }
+    }
+    
+    // If status was previously confirmed but now rejected, and there's a bedId, update bed occupancy
+    if (booking.status === 'confirmed' && status === 'rejected' && booking.bedId) {
+      const bed = await bedAPI.getBedById(booking.bedId);
+      if (bed) {
+        // Mark the bed as vacant again
+        await bedAPI.updateBed({
+          ...bed,
+          isOccupied: false
+        });
+      }
+    }
     
     bookings[bookingIndex] = updatedBooking;
     localStorage.setItem(BOOKINGS_KEY, JSON.stringify(bookings));

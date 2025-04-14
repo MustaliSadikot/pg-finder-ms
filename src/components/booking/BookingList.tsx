@@ -93,9 +93,10 @@ const BookingList: React.FC<BookingListProps> = ({ forOwner = false }) => {
     try {
       await bookingsAPI.updateBookingStatus(bookingId, status);
       
+      const statusMessage = status === 'confirmed' ? 'confirmed' : 'rejected';
       toast({
-        title: `Booking ${status}`,
-        description: `The booking has been ${status}`,
+        title: `Booking ${statusMessage}`,
+        description: `The booking has been ${statusMessage}${status === 'confirmed' ? ' and bed marked as occupied' : ''}`,
       });
       
       // Refresh bookings
@@ -168,6 +169,11 @@ const BookingList: React.FC<BookingListProps> = ({ forOwner = false }) => {
                   <div className="flex items-center text-sm">
                     <BedIcon className="h-3.5 w-3.5 mr-1" />
                     <span>Bed: <span className="font-medium">#{booking.bedDetails.bedNumber}</span></span>
+                    <span className="ml-2 text-xs">
+                      ({booking.bedDetails.isOccupied ? 
+                        <span className="text-red-500">Occupied</span> : 
+                        <span className="text-green-500">Vacant</span>})
+                    </span>
                   </div>
                 )}
                 
@@ -183,7 +189,8 @@ const BookingList: React.FC<BookingListProps> = ({ forOwner = false }) => {
                     size="sm"
                     className="border-green-500 text-green-500 hover:bg-green-50 hover:text-green-600"
                     onClick={() => handleUpdateStatus(booking.id, "confirmed")}
-                    disabled={updatingId === booking.id}
+                    disabled={updatingId === booking.id || (booking.bedDetails?.isOccupied)}
+                    title={booking.bedDetails?.isOccupied ? "This bed is already occupied" : "Confirm booking"}
                   >
                     <Check className="h-4 w-4 mr-1" />
                     Confirm
