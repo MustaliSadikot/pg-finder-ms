@@ -1,4 +1,3 @@
-
 import { User, PGListing, Booking, UserRole, FilterOptions } from '../types';
 import { mockUsers, mockPGListings, mockBookings } from '../utils/mockData';
 import { deleteImage } from './storage';
@@ -8,6 +7,7 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Local storage keys
 const USER_KEY = 'pg_finder_user';
+const USERS_KEY = 'pg_finder_users';  // New key for storing all users
 const LISTINGS_KEY = 'pg_finder_listings';
 const BOOKINGS_KEY = 'pg_finder_bookings';
 
@@ -19,17 +19,41 @@ const initializeStorage = () => {
   if (!localStorage.getItem(BOOKINGS_KEY)) {
     localStorage.setItem(BOOKINGS_KEY, JSON.stringify(mockBookings));
   }
+  if (!localStorage.getItem(USERS_KEY)) {
+    localStorage.setItem(USERS_KEY, JSON.stringify(mockUsers));
+  }
 };
 
 initializeStorage();
+
+// Helper function to get all users
+const getAllUsers = (): User[] => {
+  const usersStr = localStorage.getItem(USERS_KEY);
+  return usersStr ? JSON.parse(usersStr) : [];
+};
+
+// Helper function to save a user
+const saveUser = (user: User): void => {
+  const users = getAllUsers();
+  const existingUserIndex = users.findIndex(u => u.email === user.email);
+  
+  if (existingUserIndex >= 0) {
+    users[existingUserIndex] = user;
+  } else {
+    users.push(user);
+  }
+  
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+};
 
 // Auth APIs
 export const authAPI = {
   login: async (email: string, password: string): Promise<User> => {
     await delay(500);
     
-    // In a real app, we would make an API call to validate credentials
-    const user = mockUsers.find(u => u.email === email);
+    // Get all users from storage
+    const users = getAllUsers();
+    const user = users.find(u => u.email === email);
     
     if (!user) {
       throw new Error('Invalid credentials');
@@ -44,7 +68,15 @@ export const authAPI = {
   register: async (name: string, email: string, password: string, role: UserRole): Promise<User> => {
     await delay(500);
     
-    // In a real app, we would make an API call to create the user
+    // Check if user already exists
+    const users = getAllUsers();
+    const existingUser = users.find(u => u.email === email);
+    
+    if (existingUser) {
+      throw new Error('User with this email already exists');
+    }
+    
+    // Create new user
     const newUser: User = {
       id: `user_${Date.now()}`,
       name,
@@ -52,7 +84,10 @@ export const authAPI = {
       role,
     };
     
-    // Store in local storage
+    // Save user to storage
+    saveUser(newUser);
+    
+    // Store current user in local storage
     localStorage.setItem(USER_KEY, JSON.stringify(newUser));
     
     return newUser;

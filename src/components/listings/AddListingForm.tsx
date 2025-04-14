@@ -25,13 +25,15 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { pgListingsAPI } from "@/services/api";
 import { useToast } from "@/components/ui/use-toast";
 import { uploadImage } from "@/services/storage";
 import { Loader2, UploadCloud, Link as LinkIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useQueryClient } from "@tanstack/react-query";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const commonAmenities = [
   { id: "wifi", label: "WiFi" },
@@ -66,10 +68,12 @@ const AddListingForm: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [imageTab, setImageTab] = useState<"upload" | "url">("upload");
+  const [addedPG, setAddedPG] = useState<string | null>(null);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -144,7 +148,7 @@ const AddListingForm: React.FC = () => {
         }
       }
 
-      await pgListingsAPI.addListing({
+      const newListing = await pgListingsAPI.addListing({
         ownerId: user.id,
         name: data.name,
         location: data.location,
@@ -161,7 +165,13 @@ const AddListingForm: React.FC = () => {
         description: "Your PG has been successfully listed",
       });
 
-      navigate("/dashboard");
+      // Invalidate the owner listings query
+      queryClient.invalidateQueries({ queryKey: ["ownerListings", user.id] });
+      
+      // Set the added PG ID and reset the form
+      setAddedPG(newListing.id);
+      form.reset();
+      setImagePreview(null);
     } catch (error) {
       toast({
         title: "Failed to add listing",
@@ -176,6 +186,26 @@ const AddListingForm: React.FC = () => {
   return (
     <Card>
       <CardContent className="pt-6">
+        {addedPG && (
+          <Alert className="mb-6">
+            <AlertDescription>
+              PG listing added successfully! You can now{" "}
+              <Button 
+                variant="link" 
+                className="h-auto p-0 text-primary" 
+                onClick={() => {
+                  document.querySelector('[value="manage-rooms"]')?.dispatchEvent(
+                    new MouseEvent('click', { bubbles: true })
+                  );
+                }}
+              >
+                add rooms and beds
+              </Button>{" "}
+              to your new PG.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -462,6 +492,21 @@ const AddListingForm: React.FC = () => {
           </form>
         </Form>
       </CardContent>
+      {addedPG && (
+        <CardFooter className="px-6 pb-6 pt-0">
+          <Button 
+            className="w-full" 
+            onClick={() => {
+              // Select the manage-rooms tab
+              document.querySelector('[value="manage-rooms"]')?.dispatchEvent(
+                new MouseEvent('click', { bubbles: true })
+              );
+            }}
+          >
+            Add Rooms & Beds to Your New PG
+          </Button>
+        </CardFooter>
+      )}
     </Card>
   );
 };

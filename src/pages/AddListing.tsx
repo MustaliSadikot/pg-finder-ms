@@ -1,6 +1,6 @@
 
-import React from "react";
-import { Navigate } from "react-router-dom";
+import React, { useEffect } from "react";
+import { Navigate, useLocation } from "react-router-dom";
 import Layout from "@/components/common/Layout";
 import AddListingForm from "@/components/listings/AddListingForm";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,12 +18,33 @@ const AddListing: React.FC = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedPg, setSelectedPg] = React.useState<string | null>(null);
+  const [activeTab, setActiveTab] = React.useState<string>("add-pg");
+  const location = useLocation();
 
   const { data: userListings, isLoading } = useQuery({
     queryKey: ["ownerListings", user?.id],
     queryFn: () => (user ? pgListingsAPI.getOwnerListings(user.id) : Promise.resolve([])),
     enabled: !!user && isOwner(),
   });
+
+  // Check for pgId in URL parameters to auto-select a PG
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const pgId = params.get('pgId');
+    if (pgId) {
+      setSelectedPg(pgId);
+      setActiveTab("manage-rooms");
+    }
+  }, [location]);
+
+  useEffect(() => {
+    if (selectedPg && activeTab === "manage-rooms") {
+      const manageRoomsTab = document.querySelector('[value="manage-rooms"]');
+      if (manageRoomsTab && !manageRoomsTab.classList.contains('data-[state=active]')) {
+        manageRoomsTab.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      }
+    }
+  }, [selectedPg, activeTab]);
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -58,7 +79,7 @@ const AddListing: React.FC = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="add-pg" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList>
             <TabsTrigger value="add-pg">Add PG</TabsTrigger>
             <TabsTrigger value="manage-rooms" disabled={!selectedPg}>
@@ -119,9 +140,7 @@ const AddListing: React.FC = () => {
                           variant="outline"
                           onClick={() => {
                             setSelectedPg(listing.id);
-                            document.querySelector('[value="manage-rooms"]')?.dispatchEvent(
-                              new MouseEvent('click', { bubbles: true })
-                            );
+                            setActiveTab("manage-rooms");
                           }}
                         >
                           Manage Rooms & Beds

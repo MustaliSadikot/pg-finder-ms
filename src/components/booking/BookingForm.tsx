@@ -21,7 +21,7 @@ interface BookingFormProps {
 }
 
 const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isOwner } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isBooking, setIsBooking] = useState(false);
@@ -135,6 +135,19 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
       setIsBooking(false);
     }
   };
+
+  // If the current user is the owner of this PG, don't show booking options
+  if (isOwner() && user?.id === listing.ownerId) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="text-center p-4 text-muted-foreground">
+            You cannot book your own PG.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
