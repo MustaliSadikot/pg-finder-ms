@@ -21,10 +21,28 @@ export interface PGListing {
   description?: string;
 }
 
+export interface Room {
+  id: string;
+  pgId: string;
+  roomNumber: string;
+  totalBeds: number;
+  capacityPerBed: number;
+  availability: boolean;
+}
+
+export interface Bed {
+  id: string;
+  roomId: string;
+  bedNumber: number;
+  isOccupied: boolean;
+}
+
 export interface Booking {
   id: string;
   tenantId: string;
   pgId: string;
+  roomId?: string;
+  bedId?: string;
   bookingDate: string;
   status: 'pending' | 'confirmed' | 'rejected';
 }

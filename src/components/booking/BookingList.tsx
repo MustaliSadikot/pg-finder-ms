@@ -2,12 +2,13 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { bookingsAPI, pgListingsAPI } from "@/services/api";
-import { Booking, PGListing } from "@/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { roomAPI, bedAPI } from "@/services/roomApi";
+import { Booking, PGListing, Room, Bed } from "@/types";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
-import { Check, X } from "lucide-react";
+import { Check, X, Home, MapPin, Calendar, Bed as BedIcon } from "lucide-react";
 
 interface BookingListProps {
   forOwner?: boolean;
@@ -15,6 +16,8 @@ interface BookingListProps {
 
 interface BookingWithDetails extends Booking {
   pgDetails?: PGListing;
+  roomDetails?: Room;
+  bedDetails?: Bed;
 }
 
 const BookingList: React.FC<BookingListProps> = ({ forOwner = false }) => {
@@ -44,13 +47,26 @@ const BookingList: React.FC<BookingListProps> = ({ forOwner = false }) => {
         bookingsList = await bookingsAPI.getTenantBookings(user.id);
       }
 
-      // Get PG details for each booking
+      // Get PG details, room details, and bed details for each booking
       const bookingsWithDetails: BookingWithDetails[] = await Promise.all(
         bookingsList.map(async (booking) => {
           const pgDetails = await pgListingsAPI.getListingById(booking.pgId);
+          
+          let roomDetails;
+          if (booking.roomId) {
+            roomDetails = await roomAPI.getRoomById(booking.roomId);
+          }
+          
+          let bedDetails;
+          if (booking.bedId) {
+            bedDetails = await bedAPI.getBedById(booking.bedId);
+          }
+          
           return {
             ...booking,
             pgDetails,
+            roomDetails,
+            bedDetails,
           };
         })
       );
@@ -132,12 +148,29 @@ const BookingList: React.FC<BookingListProps> = ({ forOwner = false }) => {
                 <h3 className="font-semibold text-lg">
                   {booking.pgDetails?.name || "Unknown PG"}
                 </h3>
-                <p className="text-sm text-muted-foreground">
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <MapPin className="h-3.5 w-3.5 mr-1" />
                   {booking.pgDetails?.location || "Unknown location"}
-                </p>
-                <p className="text-sm">
-                  Booking Date: <span className="font-medium">{booking.bookingDate}</span>
-                </p>
+                </div>
+                <div className="flex items-center text-sm">
+                  <Calendar className="h-3.5 w-3.5 mr-1" />
+                  <span>Booking Date: <span className="font-medium">{booking.bookingDate}</span></span>
+                </div>
+                
+                {booking.roomDetails && (
+                  <div className="flex items-center text-sm">
+                    <Home className="h-3.5 w-3.5 mr-1" />
+                    <span>Room: <span className="font-medium">{booking.roomDetails.roomNumber}</span></span>
+                  </div>
+                )}
+                
+                {booking.bedDetails && (
+                  <div className="flex items-center text-sm">
+                    <BedIcon className="h-3.5 w-3.5 mr-1" />
+                    <span>Bed: <span className="font-medium">#{booking.bedDetails.bedNumber}</span></span>
+                  </div>
+                )}
+                
                 <Badge className={getStatusBadgeColor(booking.status)}>
                   {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
                 </Badge>
