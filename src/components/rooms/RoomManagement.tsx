@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { Room, Bed } from "@/types";
+import { Room, Bed as BedType } from "@/types";
 import { roomAPI, bedAPI } from "@/services/roomApi";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, Bed } from "lucide-react";
+import { Trash2, Plus, Bed as BedIcon } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 interface RoomManagementProps {
@@ -23,7 +23,7 @@ interface RoomManagementProps {
 
 const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [beds, setBeds] = useState<Record<string, Bed[]>>({});
+  const [beds, setBeds] = useState<Record<string, BedType[]>>({});
   const [loading, setLoading] = useState(true);
   const [newRoom, setNewRoom] = useState<Partial<Room>>({
     roomNumber: "",
@@ -31,7 +31,7 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
     capacityPerBed: 1,
     availability: true,
   });
-  const [newBed, setNewBed] = useState<Partial<Bed & { roomId: string }>>({
+  const [newBed, setNewBed] = useState<Partial<BedType & { roomId: string }>>({
     bedNumber: 1,
     isOccupied: false,
     roomId: "",
@@ -51,7 +51,7 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
       setRooms(roomsData);
 
       // Load beds for each room
-      const bedsData: Record<string, Bed[]> = {};
+      const bedsData: Record<string, BedType[]> = {};
       for (const room of roomsData) {
         const roomBeds = await bedAPI.getBedsByRoomId(room.id);
         bedsData[room.id] = roomBeds;
@@ -143,7 +143,7 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
         return;
       }
 
-      const bed: Omit<Bed, "id"> = {
+      const bed: Omit<BedType, "id"> = {
         roomId: newBed.roomId,
         bedNumber: Number(newBed.bedNumber) || 1,
         isOccupied: newBed.isOccupied || false,
@@ -193,7 +193,7 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
     }
   };
 
-  const toggleBedOccupancy = async (bed: Bed) => {
+  const toggleBedOccupancy = async (bed: BedType) => {
     try {
       const updatedBed = { ...bed, isOccupied: !bed.isOccupied };
       await bedAPI.updateBed(updatedBed);
@@ -300,7 +300,7 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
           <Dialog open={isAddingBed} onOpenChange={setIsAddingBed}>
             <DialogTrigger asChild>
               <Button variant="outline">
-                <Bed className="h-4 w-4 mr-2" />
+                <BedIcon className="h-4 w-4 mr-2" />
                 Add Bed
               </Button>
             </DialogTrigger>

@@ -1,6 +1,8 @@
 
 import { Room, Bed } from '../types';
-import { delay } from './api';
+
+// Simulate network delay
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Local storage keys
 const ROOMS_KEY = 'pg_finder_rooms';

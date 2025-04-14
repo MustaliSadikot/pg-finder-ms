@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from "react";
-import { Room, Bed } from "@/types";
+import { Room, Bed as BedType } from "@/types";
 import { roomAPI, bedAPI } from "@/services/roomApi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bed as BedIcon } from "lucide-react";
+import { Bed } from "lucide-react";
 
 interface RoomListProps {
   pgId: string;
@@ -12,7 +12,7 @@ interface RoomListProps {
 
 const RoomList: React.FC<RoomListProps> = ({ pgId }) => {
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [beds, setBeds] = useState<Record<string, Bed[]>>({});
+  const [beds, setBeds] = useState<Record<string, BedType[]>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,7 +23,7 @@ const RoomList: React.FC<RoomListProps> = ({ pgId }) => {
         setRooms(roomsData);
 
         // Load beds for each room
-        const bedsData: Record<string, Bed[]> = {};
+        const bedsData: Record<string, BedType[]> = {};
         for (const room of roomsData) {
           const roomBeds = await bedAPI.getBedsByRoomId(room.id);
           bedsData[room.id] = roomBeds;
@@ -87,7 +87,7 @@ const RoomList: React.FC<RoomListProps> = ({ pgId }) => {
                               : "bg-green-50 text-green-700"
                           }`}
                         >
-                          <BedIcon className="h-3 w-3" />
+                          <Bed className="h-3 w-3" />
                           Bed {bed.bedNumber}: {bed.isOccupied ? "Occupied" : "Vacant"}
                         </Badge>
                       ))
