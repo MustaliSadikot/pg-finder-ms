@@ -8,13 +8,14 @@ import { bookingsAPI } from "@/services/api";
 import { roomAPI, bedAPI } from "@/services/roomApi";
 import { useNavigate } from "react-router-dom";
 import { PGListing, Room, Bed } from "@/types";
-import { CalendarIcon, HardHat } from "lucide-react";
+import { CalendarIcon, BedDouble } from "lucide-react";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface BookingFormProps {
   listing: PGListing;
@@ -29,9 +30,11 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<string>("");
   const [beds, setBeds] = useState<Bed[]>([]);
-  const [selectedBed, setSelectedBed] = useState<string>("");
+  const [selectedBeds, setSelectedBeds] = useState<string[]>([]);
   const [isLoadingRooms, setIsLoadingRooms] = useState(false);
   const [isLoadingBeds, setIsLoadingBeds] = useState(false);
+  const [bedsRequired, setBedsRequired] = useState<number>(1);
+  const [availableBedCount, setAvailableBedCount] = useState<number>(0);
 
   useEffect(() => {
     const fetchRooms = async () => {
@@ -59,7 +62,13 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
         try {
           const bedsData = await bedAPI.getBedsByRoomId(selectedRoom);
           // Only show available (not occupied) beds
-          setBeds(bedsData.filter(bed => !bed.isOccupied));
+          const availableBeds = bedsData.filter(bed => !bed.isOccupied);
+          setBeds(availableBeds);
+          setAvailableBedCount(availableBeds.length);
+          
+          // Reset selected beds when room changes
+          setSelectedBeds([]);
+          setBedsRequired(1);
         } catch (error) {
           console.error("Error fetching beds:", error);
         } finally {
@@ -67,6 +76,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
         }
       } else {
         setBeds([]);
+        setAvailableBedCount(0);
       }
     };
 
@@ -75,7 +85,34 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
 
   const handleRoomChange = (roomId: string) => {
     setSelectedRoom(roomId);
-    setSelectedBed("");
+    setSelectedBeds([]);
+  };
+
+  const toggleBedSelection = (bedId: string) => {
+    if (selectedBeds.includes(bedId)) {
+      setSelectedBeds(selectedBeds.filter(id => id !== bedId));
+    } else {
+      // Only allow selection if we haven't reached the limit
+      if (selectedBeds.length < bedsRequired) {
+        setSelectedBeds([...selectedBeds, bedId]);
+      } else {
+        // Replace the last bed with the new one
+        const newSelection = [...selectedBeds];
+        newSelection.pop();
+        newSelection.push(bedId);
+        setSelectedBeds(newSelection);
+      }
+    }
+  };
+
+  const handleBedsRequiredChange = (value: string) => {
+    const num = parseInt(value, 10);
+    setBedsRequired(num);
+    
+    // Adjust selected beds if needed
+    if (num < selectedBeds.length) {
+      setSelectedBeds(selectedBeds.slice(0, num));
+    }
   };
 
   const handleBooking = async () => {
@@ -107,17 +144,41 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
       return;
     }
 
+    // For multiple bed selection
+    if (bedsRequired > 0 && selectedBeds.length !== bedsRequired) {
+      toast({
+        title: "Bed selection required",
+        description: `Please select ${bedsRequired} bed${bedsRequired > 1 ? 's' : ''}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsBooking(true);
 
     try {
-      await bookingsAPI.addBooking({
-        tenantId: user.id,
-        pgId: listing.id,
-        roomId: selectedRoom,
-        bedId: selectedBed || undefined,
-        bookingDate: format(date, "yyyy-MM-dd"),
-        status: "pending",
-      });
+      if (bedsRequired > 0 && selectedBeds.length > 0) {
+        // Create individual bookings for each selected bed
+        for (const bedId of selectedBeds) {
+          await bookingsAPI.addBooking({
+            tenantId: user.id,
+            pgId: listing.id,
+            roomId: selectedRoom,
+            bedId: bedId,
+            bookingDate: format(date, "yyyy-MM-dd"),
+            status: "pending",
+          });
+        }
+      } else {
+        // Room-only booking (no specific beds)
+        await bookingsAPI.addBooking({
+          tenantId: user.id,
+          pgId: listing.id,
+          roomId: selectedRoom,
+          bookingDate: format(date, "yyyy-MM-dd"),
+          status: "pending",
+        });
+      }
 
       toast({
         title: "Booking request sent",
@@ -188,29 +249,64 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
               </div>
 
               {selectedRoom && (
-                <div>
-                  <Label htmlFor="bedSelect">Select Bed (Optional)</Label>
-                  <Select
-                    value={selectedBed}
-                    onValueChange={setSelectedBed}
-                    disabled={isLoadingBeds || beds.length === 0}
-                  >
-                    <SelectTrigger id="bedSelect" className="w-full mt-1">
-                      <SelectValue placeholder="Select a bed" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {beds.map((bed) => (
-                        <SelectItem key={bed.id} value={bed.id}>
-                          Bed #{bed.bedNumber}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {isLoadingBeds && <p className="text-sm text-muted-foreground mt-1">Loading beds...</p>}
-                  {!isLoadingBeds && beds.length === 0 && (
-                    <p className="text-sm text-muted-foreground mt-1">No beds available</p>
+                <>
+                  <div>
+                    <Label htmlFor="bedsRequired">How many beds do you need?</Label>
+                    <Select
+                      value={bedsRequired.toString()}
+                      onValueChange={handleBedsRequiredChange}
+                      disabled={isLoadingBeds || availableBedCount === 0}
+                    >
+                      <SelectTrigger id="bedsRequired" className="w-full mt-1">
+                        <SelectValue placeholder="Select number of beds" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {/* Only show options up to the number of available beds */}
+                        {Array.from({ length: availableBedCount }, (_, i) => i + 1).map((num) => (
+                          <SelectItem key={num} value={num.toString()}>
+                            {num} {num === 1 ? 'bed' : 'beds'}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {isLoadingBeds && <p className="text-sm text-muted-foreground mt-1">Loading beds...</p>}
+                    {!isLoadingBeds && availableBedCount === 0 && (
+                      <p className="text-sm text-red-500 mt-1">No beds available in this room</p>
+                    )}
+                  </div>
+
+                  {bedsRequired > 0 && availableBedCount > 0 && (
+                    <div>
+                      <Label>Select {bedsRequired} {bedsRequired === 1 ? 'bed' : 'beds'}</Label>
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        {beds.map((bed) => (
+                          <div 
+                            key={bed.id} 
+                            className={`
+                              flex items-center gap-2 p-2 border rounded cursor-pointer
+                              ${selectedBeds.includes(bed.id) 
+                                ? 'border-primary bg-primary/10' 
+                                : 'border-input'
+                              }
+                            `}
+                            onClick={() => toggleBedSelection(bed.id)}
+                          >
+                            <Checkbox 
+                              checked={selectedBeds.includes(bed.id)}
+                              className="pointer-events-none"
+                            />
+                            <div>
+                              <p className="text-sm font-medium">Bed #{bed.bedNumber}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Selected: {selectedBeds.length} of {bedsRequired} beds
+                      </p>
+                    </div>
                   )}
-                </div>
+                </>
               )}
 
               <div>
@@ -253,7 +349,13 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
         <Button 
           className="w-full" 
           onClick={handleBooking} 
-          disabled={isBooking || !listing.availability || !selectedRoom || !date}
+          disabled={
+            isBooking || 
+            !listing.availability || 
+            !selectedRoom || 
+            !date || 
+            (bedsRequired > 0 && selectedBeds.length !== bedsRequired)
+          }
         >
           {isBooking ? "Processing..." : "Book Now"}
         </Button>
