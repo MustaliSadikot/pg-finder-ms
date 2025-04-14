@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import Layout from "@/components/common/Layout";
 import { useAuth } from "@/contexts/AuthContext";
-import { pgListingsAPI } from "@/services/api";
+import { pgListingsAPI, bookingsAPI } from "@/services/api";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,6 +23,28 @@ const Dashboard: React.FC = () => {
       return pgListingsAPI.getOwnerListings(user.id);
     },
     enabled: isAuthenticated && isOwner(),
+  });
+
+  // Query to fetch pending booking requests
+  const { data: pendingBookings, isLoading: isLoadingBookings } = useQuery({
+    queryKey: ["pendingBookings"],
+    queryFn: async () => {
+      if (!user) return [];
+      
+      if (isOwner()) {
+        // For owners: Get all bookings for their PGs and filter for pending ones
+        const listings = await pgListingsAPI.getOwnerListings(user.id);
+        const bookingsPromises = listings.map(listing => bookingsAPI.getPGBookings(listing.id));
+        const bookingsArrays = await Promise.all(bookingsPromises);
+        const allBookings = bookingsArrays.flat();
+        return allBookings.filter(booking => booking.status === 'pending');
+      } else {
+        // For tenants: Get their bookings and filter for pending ones
+        const bookings = await bookingsAPI.getTenantBookings(user.id);
+        return bookings.filter(booking => booking.status === 'pending');
+      }
+    },
+    enabled: isAuthenticated,
   });
 
   if (!isAuthenticated) {
@@ -54,6 +76,9 @@ const Dashboard: React.FC = () => {
             {isOwner() && <TabsTrigger value="listings">My Listings</TabsTrigger>}
             <TabsTrigger value="bookings">
               {isOwner() ? "Booking Requests" : "My Bookings"}
+            </TabsTrigger>
+            <TabsTrigger value="pending">
+              {isOwner() ? "Pending Approvals" : "Pending Requests"}
             </TabsTrigger>
           </TabsList>
 
@@ -122,7 +147,9 @@ const Dashboard: React.FC = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">...</div>
+                  <div className="text-2xl font-bold">
+                    {isLoadingBookings ? "..." : pendingBookings?.length || 0}
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -202,6 +229,25 @@ const Dashboard: React.FC = () => {
             </div>
 
             <BookingList forOwner={isOwner()} />
+          </TabsContent>
+          
+          <TabsContent value="pending">
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold">
+                {isOwner() ? "Pending Approval Requests" : "My Pending Requests"}
+              </h2>
+              <p className="text-gray-500">
+                {isOwner()
+                  ? "These requests need your approval"
+                  : "These are your pending booking requests"}
+              </p>
+            </div>
+            
+            {isLoadingBookings ? (
+              <div className="text-center py-4">Loading pending requests...</div>
+            ) : (
+              <BookingList forOwner={isOwner()} pendingOnly={true} />
+            )}
           </TabsContent>
         </Tabs>
       </div>

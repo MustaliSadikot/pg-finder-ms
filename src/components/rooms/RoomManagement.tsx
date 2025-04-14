@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Room, Bed as BedType } from "@/types";
 import { roomAPI, bedAPI } from "@/services/roomApi";
@@ -103,6 +104,25 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
 
       const addedRoom = await roomAPI.addRoom(room);
       setRooms([...rooms, addedRoom]);
+      
+      // Automatically create beds based on totalBeds
+      const totalBedsToCreate = Number(newRoom.totalBeds) || 1;
+      const bedsCreationPromises = [];
+      
+      for (let i = 1; i <= totalBedsToCreate; i++) {
+        const bed: Omit<BedType, "id"> = {
+          roomId: addedRoom.id,
+          bedNumber: i,
+          isOccupied: false,
+        };
+        bedsCreationPromises.push(bedAPI.addBed(bed));
+      }
+      
+      const createdBeds = await Promise.all(bedsCreationPromises);
+      const updatedBeds = { ...beds };
+      updatedBeds[addedRoom.id] = createdBeds;
+      setBeds(updatedBeds);
+      
       setNewRoom({
         roomNumber: "",
         totalBeds: 1,
@@ -113,7 +133,7 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
       
       toast({
         title: "Success",
-        description: "Room added successfully",
+        description: `Room added successfully with ${totalBedsToCreate} beds`,
       });
     } catch (error) {
       toast({
@@ -280,6 +300,7 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
                 <DialogTitle>Add New Room</DialogTitle>
                 <DialogDescription>
                   Fill out the details to add a new room to your PG.
+                  Beds will be automatically created based on the total beds count.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
@@ -317,7 +338,7 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
                 <Button variant="outline" onClick={() => setIsAddingRoom(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleAddRoom}>Add Room</Button>
+                <Button onClick={handleAddRoom}>Add Room with Beds</Button>
               </div>
             </DialogContent>
           </Dialog>

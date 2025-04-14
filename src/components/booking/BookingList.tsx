@@ -12,6 +12,7 @@ import { Check, X, Home, MapPin, Calendar, Bed as BedIcon } from "lucide-react";
 
 interface BookingListProps {
   forOwner?: boolean;
+  pendingOnly?: boolean;
 }
 
 interface BookingWithDetails extends Booking {
@@ -20,7 +21,7 @@ interface BookingWithDetails extends Booking {
   bedDetails?: Bed;
 }
 
-const BookingList: React.FC<BookingListProps> = ({ forOwner = false }) => {
+const BookingList: React.FC<BookingListProps> = ({ forOwner = false, pendingOnly = false }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [bookings, setBookings] = useState<BookingWithDetails[]>([]);
@@ -45,6 +46,11 @@ const BookingList: React.FC<BookingListProps> = ({ forOwner = false }) => {
       } else {
         // Get tenant's bookings
         bookingsList = await bookingsAPI.getTenantBookings(user.id);
+      }
+
+      // Filter for pending bookings if needed
+      if (pendingOnly) {
+        bookingsList = bookingsList.filter(booking => booking.status === 'pending');
       }
 
       // Get PG details, room details, and bed details for each booking
@@ -86,7 +92,7 @@ const BookingList: React.FC<BookingListProps> = ({ forOwner = false }) => {
 
   useEffect(() => {
     loadBookings();
-  }, [user]);
+  }, [user, pendingOnly, forOwner]);
 
   const handleUpdateStatus = async (bookingId: string, status: Booking["status"]) => {
     setUpdatingId(bookingId);
@@ -134,7 +140,11 @@ const BookingList: React.FC<BookingListProps> = ({ forOwner = false }) => {
   if (bookings.length === 0) {
     return (
       <div className="text-center p-8">
-        <p className="text-muted-foreground">No bookings found.</p>
+        <p className="text-muted-foreground">
+          {pendingOnly 
+            ? `No pending ${forOwner ? "booking requests" : "bookings"} found.` 
+            : `No bookings found.`}
+        </p>
       </div>
     );
   }
