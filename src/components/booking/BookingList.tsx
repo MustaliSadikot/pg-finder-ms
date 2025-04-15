@@ -4,11 +4,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { bookingsAPI, pgListingsAPI } from "@/services/api";
 import { roomAPI, bedAPI } from "@/services/roomApi";
 import { Booking, PGListing, Room, Bed } from "@/types";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
-import { Check, X, Home, MapPin, Calendar, Bed as BedIcon, Clock, HelpCircle } from "lucide-react";
+import BookingCard from "./BookingCard";
+import BookingEmptyState from "./BookingEmptyState";
+import BookingLoadingState from "./BookingLoadingState";
 
 interface BookingListProps {
   forOwner?: boolean;
@@ -118,147 +117,24 @@ const BookingList: React.FC<BookingListProps> = ({ forOwner = false, pendingOnly
     }
   };
 
-  const getStatusBadgeColor = (status: Booking["status"]) => {
-    switch (status) {
-      case "confirmed":
-        return "bg-green-500 hover:bg-green-600";
-      case "rejected":
-        return "bg-red-500 hover:bg-red-600";
-      default:
-        return "bg-yellow-500 hover:bg-yellow-600";
-    }
-  };
-
-  const getStatusIcon = (status: Booking["status"]) => {
-    switch (status) {
-      case "confirmed":
-        return <Check className="h-3.5 w-3.5 mr-1" />;
-      case "rejected":
-        return <X className="h-3.5 w-3.5 mr-1" />;
-      default:
-        return <Clock className="h-3.5 w-3.5 mr-1" />;
-    }
-  };
-
   if (loading) {
-    return (
-      <div className="flex justify-center items-center p-8">
-        <p>Loading bookings...</p>
-      </div>
-    );
+    return <BookingLoadingState />;
   }
 
   if (bookings.length === 0) {
-    return (
-      <div className="text-center p-8">
-        <p className="text-muted-foreground">
-          {pendingOnly 
-            ? `No pending ${forOwner ? "booking requests" : "bookings"} found.` 
-            : `No bookings found.`}
-        </p>
-      </div>
-    );
+    return <BookingEmptyState pendingOnly={pendingOnly} forOwner={forOwner} />;
   }
 
   return (
     <div className="space-y-4">
       {bookings.map((booking) => (
-        <Card key={booking.id} className="overflow-hidden">
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="space-y-2">
-                <h3 className="font-semibold text-lg">
-                  {booking.pgDetails?.name || "Unknown PG"}
-                </h3>
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <MapPin className="h-3.5 w-3.5 mr-1" />
-                  {booking.pgDetails?.location || "Unknown location"}
-                </div>
-                <div className="flex items-center text-sm">
-                  <Calendar className="h-3.5 w-3.5 mr-1" />
-                  <span>Booking Date: <span className="font-medium">{booking.bookingDate}</span></span>
-                </div>
-                
-                {booking.roomDetails && (
-                  <div className="flex items-center text-sm">
-                    <Home className="h-3.5 w-3.5 mr-1" />
-                    <span>Room: <span className="font-medium">{booking.roomDetails.roomNumber}</span></span>
-                  </div>
-                )}
-                
-                {booking.bedDetails && (
-                  <div className="flex items-center text-sm">
-                    <BedIcon className="h-3.5 w-3.5 mr-1" />
-                    <span>Bed: <span className="font-medium">#{booking.bedDetails.bedNumber}</span></span>
-                    <span className="ml-2 text-xs">
-                      ({booking.bedDetails.isOccupied ? 
-                        <span className="text-red-500">Occupied</span> : 
-                        <span className="text-green-500">Vacant</span>})
-                    </span>
-                  </div>
-                )}
-                
-                <Badge className={`flex items-center ${getStatusBadgeColor(booking.status)}`}>
-                  {getStatusIcon(booking.status)}
-                  {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                </Badge>
-
-                {!forOwner && booking.status === "pending" && (
-                  <div className="text-sm mt-2 p-2 bg-blue-50 rounded border border-blue-100 flex items-start">
-                    <HelpCircle className="h-4 w-4 text-blue-500 mr-2 flex-shrink-0 mt-0.5" />
-                    <p className="text-blue-700">
-                      Your booking is waiting for approval from the PG owner. You'll be notified when the status changes.
-                    </p>
-                  </div>
-                )}
-                
-                {!forOwner && booking.status === "confirmed" && (
-                  <div className="text-sm mt-2 p-2 bg-green-50 rounded border border-green-100 flex items-start">
-                    <Check className="h-4 w-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-                    <p className="text-green-700">
-                      Congratulations! Your booking has been confirmed. You can contact the PG owner for further details.
-                    </p>
-                  </div>
-                )}
-                
-                {!forOwner && booking.status === "rejected" && (
-                  <div className="text-sm mt-2 p-2 bg-red-50 rounded border border-red-100 flex items-start">
-                    <X className="h-4 w-4 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
-                    <p className="text-red-700">
-                      Your booking request has been rejected. Please try booking another PG or contact support for assistance.
-                    </p>
-                  </div>
-                )}
-              </div>
-              
-              {forOwner && booking.status === "pending" && (
-                <div className="flex space-x-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="border-green-500 text-green-500 hover:bg-green-50 hover:text-green-600"
-                    onClick={() => handleUpdateStatus(booking.id, "confirmed")}
-                    disabled={updatingId === booking.id || (booking.bedDetails?.isOccupied)}
-                    title={booking.bedDetails?.isOccupied ? "This bed is already occupied" : "Confirm booking"}
-                  >
-                    <Check className="h-4 w-4 mr-1" />
-                    Confirm
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="border-red-500 text-red-500 hover:bg-red-50 hover:text-red-600"
-                    onClick={() => handleUpdateStatus(booking.id, "rejected")}
-                    disabled={updatingId === booking.id}
-                  >
-                    <X className="h-4 w-4 mr-1" />
-                    Reject
-                  </Button>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <BookingCard
+          key={booking.id}
+          booking={booking}
+          forOwner={forOwner}
+          updatingId={updatingId}
+          onUpdateStatus={handleUpdateStatus}
+        />
       ))}
     </div>
   );
