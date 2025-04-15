@@ -287,6 +287,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
                           >
                             <Checkbox 
                               checked={selectedBeds.includes(bed.id)}
+                              onCheckedChange={() => toggleBedSelection(bed.id)}
                               className="pointer-events-none"
                             />
                             <div>
