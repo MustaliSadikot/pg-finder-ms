@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
-import { Check, X, Home, MapPin, Calendar, Bed as BedIcon } from "lucide-react";
+import { Check, X, Home, MapPin, Calendar, Bed as BedIcon, Clock, HelpCircle } from "lucide-react";
 
 interface BookingListProps {
   forOwner?: boolean;
@@ -129,6 +129,17 @@ const BookingList: React.FC<BookingListProps> = ({ forOwner = false, pendingOnly
     }
   };
 
+  const getStatusIcon = (status: Booking["status"]) => {
+    switch (status) {
+      case "confirmed":
+        return <Check className="h-3.5 w-3.5 mr-1" />;
+      case "rejected":
+        return <X className="h-3.5 w-3.5 mr-1" />;
+      default:
+        return <Clock className="h-3.5 w-3.5 mr-1" />;
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center p-8">
@@ -152,7 +163,7 @@ const BookingList: React.FC<BookingListProps> = ({ forOwner = false, pendingOnly
   return (
     <div className="space-y-4">
       {bookings.map((booking) => (
-        <Card key={booking.id}>
+        <Card key={booking.id} className="overflow-hidden">
           <CardContent className="p-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="space-y-2">
@@ -187,9 +198,37 @@ const BookingList: React.FC<BookingListProps> = ({ forOwner = false, pendingOnly
                   </div>
                 )}
                 
-                <Badge className={getStatusBadgeColor(booking.status)}>
+                <Badge className={`flex items-center ${getStatusBadgeColor(booking.status)}`}>
+                  {getStatusIcon(booking.status)}
                   {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
                 </Badge>
+
+                {!forOwner && booking.status === "pending" && (
+                  <div className="text-sm mt-2 p-2 bg-blue-50 rounded border border-blue-100 flex items-start">
+                    <HelpCircle className="h-4 w-4 text-blue-500 mr-2 flex-shrink-0 mt-0.5" />
+                    <p className="text-blue-700">
+                      Your booking is waiting for approval from the PG owner. You'll be notified when the status changes.
+                    </p>
+                  </div>
+                )}
+                
+                {!forOwner && booking.status === "confirmed" && (
+                  <div className="text-sm mt-2 p-2 bg-green-50 rounded border border-green-100 flex items-start">
+                    <Check className="h-4 w-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+                    <p className="text-green-700">
+                      Congratulations! Your booking has been confirmed. You can contact the PG owner for further details.
+                    </p>
+                  </div>
+                )}
+                
+                {!forOwner && booking.status === "rejected" && (
+                  <div className="text-sm mt-2 p-2 bg-red-50 rounded border border-red-100 flex items-start">
+                    <X className="h-4 w-4 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
+                    <p className="text-red-700">
+                      Your booking request has been rejected. Please try booking another PG or contact support for assistance.
+                    </p>
+                  </div>
+                )}
               </div>
               
               {forOwner && booking.status === "pending" && (

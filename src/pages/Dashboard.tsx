@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, Navigate } from "react-router-dom";
 import Layout from "@/components/common/Layout";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import PGCard from "@/components/listings/PGCard";
 import BookingList from "@/components/booking/BookingList";
-import { Home, Plus, Clock, CalendarCheck } from "lucide-react";
+import { Home, Plus, Clock, CalendarCheck, AlertCircle } from "lucide-react";
 
 const Dashboard: React.FC = () => {
   const { user, isAuthenticated, isOwner, isTenant } = useAuth();
@@ -47,6 +47,13 @@ const Dashboard: React.FC = () => {
     enabled: isAuthenticated,
   });
 
+  useEffect(() => {
+    // If there are pending bookings/requests, set the active tab to pending for better visibility
+    if (pendingBookings && pendingBookings.length > 0 && activeTab === "overview") {
+      setActiveTab("pending");
+    }
+  }, [pendingBookings]);
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
@@ -77,7 +84,12 @@ const Dashboard: React.FC = () => {
             <TabsTrigger value="bookings">
               {isOwner() ? "Booking Requests" : "My Bookings"}
             </TabsTrigger>
-            <TabsTrigger value="pending">
+            <TabsTrigger value="pending" className="relative">
+              {pendingBookings && pendingBookings.length > 0 && (
+                <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
+                  {pendingBookings.length}
+                </span>
+              )}
               {isOwner() ? "Pending Approvals" : "Pending Requests"}
             </TabsTrigger>
           </TabsList>
@@ -132,7 +144,7 @@ const Dashboard: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className={pendingBookings && pendingBookings.length > 0 ? "border-red-200 shadow-md" : ""}>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <div className="space-y-1">
                     <CardTitle className="text-sm font-medium">
@@ -142,17 +154,58 @@ const Dashboard: React.FC = () => {
                       {isOwner() ? "Awaiting your approval" : "Awaiting owner approval"}
                     </CardDescription>
                   </div>
-                  <div className="p-2 bg-primary/10 rounded-full text-primary">
-                    <Clock className="h-5 w-5" />
+                  <div className={`p-2 rounded-full ${pendingBookings && pendingBookings.length > 0 ? "bg-red-100 text-red-500" : "bg-primary/10 text-primary"}`}>
+                    {pendingBookings && pendingBookings.length > 0 ? (
+                      <AlertCircle className="h-5 w-5" />
+                    ) : (
+                      <Clock className="h-5 w-5" />
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
-                    {isLoadingBookings ? "..." : pendingBookings?.length || 0}
+                  <div className="flex justify-between items-center">
+                    <div className="text-2xl font-bold">
+                      {isLoadingBookings ? "..." : pendingBookings?.length || 0}
+                    </div>
+                    {pendingBookings && pendingBookings.length > 0 && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setActiveTab("pending")}
+                        className="text-sm"
+                      >
+                        View All
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
             </div>
+
+            {pendingBookings && pendingBookings.length > 0 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-8 flex items-start">
+                <AlertCircle className="h-5 w-5 text-yellow-500 mr-2 mt-0.5" />
+                <div>
+                  <h3 className="font-medium text-yellow-700">
+                    {isOwner() ? "Pending approvals require your attention" : "You have pending booking requests"}
+                  </h3>
+                  <p className="text-sm text-yellow-600">
+                    {isOwner() 
+                      ? `You have ${pendingBookings.length} booking request${pendingBookings.length > 1 ? 's' : ''} waiting for your approval.` 
+                      : `You have ${pendingBookings.length} booking request${pendingBookings.length > 1 ? 's' : ''} waiting for owner approval.`}
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-2 bg-white hover:bg-white border-yellow-300 text-yellow-700 hover:text-yellow-800"
+                    onClick={() => setActiveTab("pending")}
+                  >
+                    <Clock className="mr-2 h-4 w-4" />
+                    {isOwner() ? "Review Requests" : "View Pending Requests"}
+                  </Button>
+                </div>
+              </div>
+            )}
 
             <div className="bg-white rounded-lg p-6 shadow-sm border">
               <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
@@ -245,8 +298,32 @@ const Dashboard: React.FC = () => {
             
             {isLoadingBookings ? (
               <div className="text-center py-4">Loading pending requests...</div>
-            ) : (
+            ) : pendingBookings && pendingBookings.length > 0 ? (
               <BookingList forOwner={isOwner()} pendingOnly={true} />
+            ) : (
+              <div className="bg-white rounded-lg p-8 shadow-sm border text-center">
+                <h3 className="text-lg font-semibold mb-2">No Pending Requests</h3>
+                <p className="text-gray-500 mb-4">
+                  {isOwner()
+                    ? "You don't have any pending booking requests right now."
+                    : "You don't have any pending booking requests right now."}
+                </p>
+                <Button asChild variant="outline">
+                  <Link to={isOwner() ? "/add-listing" : "/listings"}>
+                    {isOwner() ? (
+                      <>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add New PG
+                      </>
+                    ) : (
+                      <>
+                        <Home className="mr-2 h-4 w-4" />
+                        Browse PG Listings
+                      </>
+                    )}
+                  </Link>
+                </Button>
+              </div>
             )}
           </TabsContent>
         </Tabs>

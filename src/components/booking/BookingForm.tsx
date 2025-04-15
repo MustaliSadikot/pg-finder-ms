@@ -95,12 +95,6 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
       // Only allow selection if we haven't reached the limit
       if (selectedBeds.length < bedsRequired) {
         setSelectedBeds([...selectedBeds, bedId]);
-      } else {
-        // Replace the last bed with the new one
-        const newSelection = [...selectedBeds];
-        newSelection.pop();
-        newSelection.push(bedId);
-        setSelectedBeds(newSelection);
       }
     }
   };
@@ -109,10 +103,8 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
     const num = parseInt(value, 10);
     setBedsRequired(num);
     
-    // Adjust selected beds if needed
-    if (num < selectedBeds.length) {
-      setSelectedBeds(selectedBeds.slice(0, num));
-    }
+    // Clear selected beds when changing the required count
+    setSelectedBeds([]);
   };
 
   const handleBooking = async () => {
@@ -277,7 +269,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
 
                   {bedsRequired > 0 && availableBedCount > 0 && (
                     <div>
-                      <Label>Select {bedsRequired} {bedsRequired === 1 ? 'bed' : 'beds'}</Label>
+                      <Label>Select {bedsRequired} specific {bedsRequired === 1 ? 'bed' : 'beds'}</Label>
                       <div className="grid grid-cols-2 gap-2 mt-2">
                         {beds.map((bed) => (
                           <div 
@@ -286,8 +278,10 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
                               flex items-center gap-2 p-2 border rounded cursor-pointer
                               ${selectedBeds.includes(bed.id) 
                                 ? 'border-primary bg-primary/10' 
-                                : 'border-input'
-                              }
+                                : 'border-input hover:border-primary/50'}
+                              ${selectedBeds.length >= bedsRequired && !selectedBeds.includes(bed.id)
+                                ? 'opacity-50'
+                                : ''}
                             `}
                             onClick={() => toggleBedSelection(bed.id)}
                           >
@@ -304,6 +298,14 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
                       <p className="text-xs text-muted-foreground mt-1">
                         Selected: {selectedBeds.length} of {bedsRequired} beds
                       </p>
+                      {selectedBeds.length > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          Bed numbers selected: {selectedBeds.map(id => {
+                            const bed = beds.find(b => b.id === id);
+                            return bed ? bed.bedNumber : '';
+                          }).join(', ')}
+                        </p>
+                      )}
                     </div>
                   )}
                 </>
