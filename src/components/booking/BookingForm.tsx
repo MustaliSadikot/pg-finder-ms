@@ -8,14 +8,15 @@ import { bookingsAPI } from "@/services/api";
 import { roomAPI, bedAPI } from "@/services/roomApi";
 import { useNavigate } from "react-router-dom";
 import { PGListing, Room, Bed } from "@/types";
-import { CalendarIcon, BedDouble } from "lucide-react";
 import { format } from "date-fns";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
+
+// Import the extracted components
+import BookingPrice from "./BookingPrice";
+import RoomSelector from "./RoomSelector";
+import BedsRequiredSelector from "./BedsRequiredSelector";
+import BedSelector from "./BedSelector";
+import BookingDatePicker from "./BookingDatePicker";
+import OwnerMessage from "./OwnerMessage";
 
 interface BookingFormProps {
   listing: PGListing;
@@ -191,15 +192,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
 
   // If the current user is the owner of this PG, don't show booking options
   if (isOwner() && user?.id === listing.ownerId) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
-          <div className="text-center p-4 text-muted-foreground">
-            You cannot book your own PG.
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return <OwnerMessage />;
   }
 
   return (
@@ -209,135 +202,38 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <span className="font-medium">Price:</span>
-            <span className="font-bold text-pgfinder-primary text-xl">₹{listing.price}/month</span>
-          </div>
+          <BookingPrice listing={listing} />
           
           <div className="border-t pt-4">
             <div className="space-y-4">
-              <div>
-                <Label htmlFor="roomSelect">Select Room</Label>
-                <Select
-                  value={selectedRoom}
-                  onValueChange={handleRoomChange}
-                  disabled={isLoadingRooms || rooms.length === 0}
-                >
-                  <SelectTrigger id="roomSelect" className="w-full mt-1">
-                    <SelectValue placeholder="Select a room" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {rooms.map((room) => (
-                      <SelectItem key={room.id} value={room.id}>
-                        Room {room.roomNumber} - {room.totalBeds} beds
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {isLoadingRooms && <p className="text-sm text-muted-foreground mt-1">Loading rooms...</p>}
-                {!isLoadingRooms && rooms.length === 0 && (
-                  <p className="text-sm text-muted-foreground mt-1">No rooms available</p>
-                )}
-              </div>
+              <RoomSelector 
+                rooms={rooms} 
+                selectedRoom={selectedRoom} 
+                onRoomChange={handleRoomChange} 
+                isLoadingRooms={isLoadingRooms} 
+              />
 
               {selectedRoom && (
                 <>
-                  <div>
-                    <Label htmlFor="bedsRequired">How many beds do you need?</Label>
-                    <Select
-                      value={bedsRequired.toString()}
-                      onValueChange={handleBedsRequiredChange}
-                      disabled={isLoadingBeds || availableBedCount === 0}
-                    >
-                      <SelectTrigger id="bedsRequired" className="w-full mt-1">
-                        <SelectValue placeholder="Select number of beds" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {/* Only show options up to the number of available beds */}
-                        {Array.from({ length: availableBedCount }, (_, i) => i + 1).map((num) => (
-                          <SelectItem key={num} value={num.toString()}>
-                            {num} {num === 1 ? 'bed' : 'beds'}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {isLoadingBeds && <p className="text-sm text-muted-foreground mt-1">Loading beds...</p>}
-                    {!isLoadingBeds && availableBedCount === 0 && (
-                      <p className="text-sm text-red-500 mt-1">No beds available in this room</p>
-                    )}
-                  </div>
+                  <BedsRequiredSelector 
+                    bedsRequired={bedsRequired}
+                    onChange={handleBedsRequiredChange}
+                    isLoading={isLoadingBeds}
+                    availableBedCount={availableBedCount}
+                  />
 
                   {bedsRequired > 0 && availableBedCount > 0 && (
-                    <div>
-                      <Label>Select {bedsRequired} specific {bedsRequired === 1 ? 'bed' : 'beds'}</Label>
-                      <div className="grid grid-cols-2 gap-2 mt-2">
-                        {beds.map((bed) => (
-                          <div 
-                            key={bed.id} 
-                            className={`
-                              flex items-center gap-2 p-2 border rounded cursor-pointer
-                              ${selectedBeds.includes(bed.id) 
-                                ? 'border-primary bg-primary/10' 
-                                : 'border-input hover:border-primary/50'}
-                              ${selectedBeds.length >= bedsRequired && !selectedBeds.includes(bed.id)
-                                ? 'opacity-50'
-                                : ''}
-                            `}
-                            onClick={() => toggleBedSelection(bed.id)}
-                          >
-                            <Checkbox 
-                              checked={selectedBeds.includes(bed.id)}
-                              onCheckedChange={() => toggleBedSelection(bed.id)}
-                              className="pointer-events-none"
-                            />
-                            <div>
-                              <p className="text-sm font-medium">Bed #{bed.bedNumber}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Selected: {selectedBeds.length} of {bedsRequired} beds
-                      </p>
-                      {selectedBeds.length > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                          Bed numbers selected: {selectedBeds.map(id => {
-                            const bed = beds.find(b => b.id === id);
-                            return bed ? bed.bedNumber : '';
-                          }).join(', ')}
-                        </p>
-                      )}
-                    </div>
+                    <BedSelector 
+                      beds={beds}
+                      selectedBeds={selectedBeds}
+                      bedsRequired={bedsRequired}
+                      onToggleBed={toggleBedSelection}
+                    />
                   )}
                 </>
               )}
 
-              <div>
-                <Label>Select move-in date:</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal mt-1",
-                        !date && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {date ? format(date, "PPP") : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={date}
-                      onSelect={setDate}
-                      initialFocus
-                      disabled={(date) => date < new Date()}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+              <BookingDatePicker date={date} onDateChange={setDate} />
             </div>
           </div>
           
