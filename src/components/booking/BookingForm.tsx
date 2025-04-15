@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -43,7 +42,6 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
         setIsLoadingRooms(true);
         try {
           const roomsData = await roomAPI.getRoomsByPGId(listing.id);
-          // Only show available rooms
           setRooms(roomsData.filter(room => room.availability));
         } catch (error) {
           console.error("Error fetching rooms:", error);
@@ -62,12 +60,10 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
         setIsLoadingBeds(true);
         try {
           const bedsData = await bedAPI.getBedsByRoomId(selectedRoom);
-          // Only show available (not occupied) beds
           const availableBeds = bedsData.filter(bed => !bed.isOccupied);
           setBeds(availableBeds);
           setAvailableBedCount(availableBeds.length);
           
-          // Reset selected beds when room changes
           setSelectedBeds([]);
           setBedsRequired(1);
         } catch (error) {
@@ -93,9 +89,12 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
     if (selectedBeds.includes(bedId)) {
       setSelectedBeds(selectedBeds.filter(id => id !== bedId));
     } else {
-      // Only allow selection if we haven't reached the limit
       if (selectedBeds.length < bedsRequired) {
-        setSelectedBeds([...selectedBeds, bedId]);
+        if (bedsRequired === 1) {
+          setSelectedBeds([bedId]);
+        } else {
+          setSelectedBeds([...selectedBeds, bedId]);
+        }
       }
     }
   };
@@ -104,7 +103,6 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
     const num = parseInt(value, 10);
     setBedsRequired(num);
     
-    // Clear selected beds when changing the required count
     setSelectedBeds([]);
   };
 
@@ -137,7 +135,6 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
       return;
     }
 
-    // For multiple bed selection
     if (bedsRequired > 0 && selectedBeds.length !== bedsRequired) {
       toast({
         title: "Bed selection required",
@@ -151,7 +148,6 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
 
     try {
       if (bedsRequired > 0 && selectedBeds.length > 0) {
-        // Create individual bookings for each selected bed
         for (const bedId of selectedBeds) {
           await bookingsAPI.addBooking({
             tenantId: user.id,
@@ -163,7 +159,6 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
           });
         }
       } else {
-        // Room-only booking (no specific beds)
         await bookingsAPI.addBooking({
           tenantId: user.id,
           pgId: listing.id,
@@ -190,7 +185,6 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
     }
   };
 
-  // If the current user is the owner of this PG, don't show booking options
   if (isOwner() && user?.id === listing.ownerId) {
     return <OwnerMessage />;
   }

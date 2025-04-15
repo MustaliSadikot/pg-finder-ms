@@ -17,6 +17,11 @@ const BedSelector: React.FC<BedSelectorProps> = ({
   bedsRequired,
   onToggleBed
 }) => {
+  // Function to handle bed selection
+  const handleBedToggle = (bedId: string) => {
+    onToggleBed(bedId);
+  };
+
   return (
     <div>
       <Label>Select {bedsRequired} specific {bedsRequired === 1 ? 'bed' : 'beds'}</Label>
@@ -33,11 +38,11 @@ const BedSelector: React.FC<BedSelectorProps> = ({
                 ? 'opacity-50'
                 : ''}
             `}
-            onClick={() => onToggleBed(bed.id)}
+            onClick={() => handleBedToggle(bed.id)}
           >
             <Checkbox 
               checked={selectedBeds.includes(bed.id)}
-              onCheckedChange={() => onToggleBed(bed.id)}
+              onCheckedChange={() => {}}
               className="pointer-events-none"
             />
             <div>
