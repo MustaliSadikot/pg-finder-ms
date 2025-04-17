@@ -53,8 +53,14 @@ export const useBookingForm = ({ listing, user, isAuthenticated }: UseBookingFor
           const availableBeds = bedsData.filter(bed => !bed.isOccupied);
           setBeds(availableBeds);
           setAvailableBedCount(availableBeds.length);
-          setSelectedBeds([]);
-          setBedsRequired(1);
+          
+          if (availableBeds.length > 0) {
+            const shuffledBeds = [...availableBeds].sort(() => Math.random() - 0.5);
+            const randomBeds = shuffledBeds.slice(0, bedsRequired).map(bed => bed.id);
+            setSelectedBeds(randomBeds);
+          } else {
+            setSelectedBeds([]);
+          }
         } catch (error) {
           console.error("Error fetching beds:", error);
         } finally {
@@ -63,38 +69,20 @@ export const useBookingForm = ({ listing, user, isAuthenticated }: UseBookingFor
       } else {
         setBeds([]);
         setAvailableBedCount(0);
+        setSelectedBeds([]);
       }
     };
 
     fetchBeds();
-  }, [selectedRoom]);
+  }, [selectedRoom, bedsRequired]);
 
   const handleRoomChange = (roomId: string) => {
     setSelectedRoom(roomId);
-    setSelectedBeds([]);
-  };
-
-  const toggleBedSelection = (bedId: string) => {
-    if (bedsRequired === 1) {
-      setSelectedBeds([bedId]);
-      return;
-    }
-
-    if (selectedBeds.includes(bedId)) {
-      const newSelection = selectedBeds.filter(id => id !== bedId);
-      setSelectedBeds(newSelection);
-    } else {
-      if (selectedBeds.length < bedsRequired) {
-        const newSelection = [...selectedBeds, bedId];
-        setSelectedBeds(newSelection);
-      }
-    }
   };
 
   const handleBedsRequiredChange = (value: string) => {
     const num = parseInt(value, 10);
     setBedsRequired(num);
-    setSelectedBeds([]);
   };
 
   const handleBooking = async () => {
@@ -189,7 +177,6 @@ export const useBookingForm = ({ listing, user, isAuthenticated }: UseBookingFor
     isLoadingBeds,
     bedsRequired,
     handleBedsRequiredChange,
-    toggleBedSelection,
     handleBooking,
     availableBedCount,
   };
