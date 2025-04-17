@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -76,8 +75,11 @@ export const useBookingForm = ({ listing, user, isAuthenticated }: UseBookingFor
   };
 
   const toggleBedSelection = (bedId: string) => {
-    // For single bed selection (bedsRequired === 1), just set the selection to this bed
+    console.log("Toggling bed selection for:", bedId);
+    
+    // For single bed selection
     if (bedsRequired === 1) {
+      console.log("Single bed mode, setting selection to:", [bedId]);
       setSelectedBeds([bedId]);
       return;
     }
@@ -85,11 +87,15 @@ export const useBookingForm = ({ listing, user, isAuthenticated }: UseBookingFor
     // For multiple bed selection
     if (selectedBeds.includes(bedId)) {
       // If already selected, remove it
-      setSelectedBeds(selectedBeds.filter(id => id !== bedId));
+      const newSelection = selectedBeds.filter(id => id !== bedId);
+      console.log("Removing from selection, new selection:", newSelection);
+      setSelectedBeds(newSelection);
     } else {
       // If not selected and we haven't reached the limit, add it
       if (selectedBeds.length < bedsRequired) {
-        setSelectedBeds([...selectedBeds, bedId]);
+        const newSelection = [...selectedBeds, bedId];
+        console.log("Adding to selection, new selection:", newSelection);
+        setSelectedBeds(newSelection);
       }
     }
   };

@@ -26,31 +26,32 @@ const BedSelector: React.FC<BedSelectorProps> = ({
     <div>
       <Label>Select {bedsRequired} specific {bedsRequired === 1 ? 'bed' : 'beds'}</Label>
       <div className="grid grid-cols-2 gap-2 mt-2">
-        {beds.map((bed) => (
-          <div 
-            key={`bed-selector-${bed.id}`} 
-            className={`
-              flex items-center gap-2 p-2 border rounded cursor-pointer
-              ${selectedBeds.includes(bed.id) 
-                ? 'border-primary bg-primary/10' 
-                : 'border-input hover:border-primary/50'}
-              ${selectedBeds.length >= bedsRequired && !selectedBeds.includes(bed.id)
-                ? 'opacity-50'
-                : ''}
-            `}
-            onClick={() => handleBedToggle(bed.id)}
-          >
-            <Checkbox 
-              id={`bed-checkbox-${bed.id}`}
-              checked={selectedBeds.includes(bed.id)}
-              onCheckedChange={() => {}}
-              className="pointer-events-none"
-            />
-            <div>
-              <p className="text-sm font-medium">Bed #{bed.bedNumber}</p>
+        {beds.map((bed) => {
+          const isSelected = selectedBeds.includes(bed.id);
+          const isDisabled = selectedBeds.length >= bedsRequired && !isSelected;
+          
+          return (
+            <div 
+              key={`bed-selector-${bed.bedNumber}-${bed.id}`}
+              className={`
+                flex items-center gap-2 p-2 border rounded cursor-pointer
+                ${isSelected ? 'border-primary bg-primary/10' : 'border-input hover:border-primary/50'}
+                ${isDisabled ? 'opacity-50' : ''}
+              `}
+              onClick={() => handleBedToggle(bed.id)}
+            >
+              <Checkbox 
+                id={`bed-checkbox-${bed.bedNumber}-${bed.id}`}
+                checked={isSelected}
+                onCheckedChange={() => {}}
+                className="pointer-events-none"
+              />
+              <div>
+                <p className="text-sm font-medium">Bed #{bed.bedNumber}</p>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <p className="text-xs text-muted-foreground mt-1">
         Selected: {selectedBeds.length} of {bedsRequired} beds
