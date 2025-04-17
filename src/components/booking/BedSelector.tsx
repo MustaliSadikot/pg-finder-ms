@@ -28,7 +28,7 @@ const BedSelector: React.FC<BedSelectorProps> = ({
       <div className="grid grid-cols-2 gap-2 mt-2">
         {beds.map((bed) => (
           <div 
-            key={bed.id} 
+            key={`bed-selector-${bed.id}`} 
             className={`
               flex items-center gap-2 p-2 border rounded cursor-pointer
               ${selectedBeds.includes(bed.id) 
@@ -41,6 +41,7 @@ const BedSelector: React.FC<BedSelectorProps> = ({
             onClick={() => handleBedToggle(bed.id)}
           >
             <Checkbox 
+              id={`bed-checkbox-${bed.id}`}
               checked={selectedBeds.includes(bed.id)}
               onCheckedChange={() => {}}
               className="pointer-events-none"
