@@ -75,26 +75,17 @@ export const useBookingForm = ({ listing, user, isAuthenticated }: UseBookingFor
   };
 
   const toggleBedSelection = (bedId: string) => {
-    console.log("Toggling bed selection for:", bedId);
-    
-    // For single bed selection
     if (bedsRequired === 1) {
-      console.log("Single bed mode, setting selection to:", [bedId]);
       setSelectedBeds([bedId]);
       return;
     }
 
-    // For multiple bed selection
     if (selectedBeds.includes(bedId)) {
-      // If already selected, remove it
       const newSelection = selectedBeds.filter(id => id !== bedId);
-      console.log("Removing from selection, new selection:", newSelection);
       setSelectedBeds(newSelection);
     } else {
-      // If not selected and we haven't reached the limit, add it
       if (selectedBeds.length < bedsRequired) {
         const newSelection = [...selectedBeds, bedId];
-        console.log("Adding to selection, new selection:", newSelection);
         setSelectedBeds(newSelection);
       }
     }
