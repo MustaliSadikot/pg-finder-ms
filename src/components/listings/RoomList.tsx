@@ -95,7 +95,7 @@ const RoomList: React.FC<RoomListProps> = ({ pgId }) => {
                       {roomBeds.length ? (
                         roomBeds.map((bed) => (
                           <Badge
-                            key={`bed_${bed.id}`}
+                            key={bed.id}
                             variant="outline"
                             className={`flex items-center gap-1 ${
                               bed.isOccupied

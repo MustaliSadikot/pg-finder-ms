@@ -209,16 +209,6 @@ export const bookingsAPI = {
     const updatedBookings = [...bookings, newBooking];
     localStorage.setItem(BOOKINGS_KEY, JSON.stringify(updatedBookings));
     
-    if (booking.bedId) {
-      const bed = await bedAPI.getBedById(booking.bedId);
-      if (bed) {
-        await bedAPI.updateBed({
-          ...bed,
-          isOccupied: true
-        });
-      }
-    }
-    
     return newBooking;
   },
   
@@ -239,8 +229,9 @@ export const bookingsAPI = {
     };
     
     if (status === 'confirmed' && booking.bedId) {
+      console.log('Marking bed as occupied:', booking.bedId);
       const bed = await bedAPI.getBedById(booking.bedId);
-      if (bed) {
+      if (bed && !bed.isOccupied) {
         await bedAPI.updateBed({
           ...bed,
           isOccupied: true
@@ -249,6 +240,7 @@ export const bookingsAPI = {
     }
     
     if (booking.status === 'confirmed' && status === 'rejected' && booking.bedId) {
+      console.log('Marking bed as vacant:', booking.bedId);
       const bed = await bedAPI.getBedById(booking.bedId);
       if (bed) {
         await bedAPI.updateBed({
