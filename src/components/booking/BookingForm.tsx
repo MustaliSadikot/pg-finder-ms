@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { PGListing } from "@/types";
 import { useBookingForm } from "@/hooks/useBookingForm";
 
-// Import the extracted components
 import BookingPrice from "./BookingPrice";
 import RoomSelector from "./RoomSelector";
 import BedsRequiredSelector from "./BedsRequiredSelector";
@@ -33,7 +31,6 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
     isLoadingBeds,
     bedsRequired,
     handleBedsRequiredChange,
-    toggleBedSelection,
     handleBooking,
     availableBedCount,
   } = useBookingForm({ listing, user, isAuthenticated });
@@ -74,7 +71,6 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
                       beds={beds}
                       selectedBeds={selectedBeds}
                       bedsRequired={bedsRequired}
-                      onToggleBed={toggleBedSelection}
                     />
                   )}
                 </>
