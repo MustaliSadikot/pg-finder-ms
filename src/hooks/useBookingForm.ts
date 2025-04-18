@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -6,6 +5,7 @@ import { format } from "date-fns";
 import { Bed, Room, PGListing, User } from "@/types";
 import { bookingsAPI } from "@/services/api";
 import { roomAPI, bedAPI } from "@/services/roomApi";
+import { selectAvailableBeds } from "@/utils/bedUtils";
 
 interface UseBookingFormProps {
   listing: PGListing;
@@ -56,19 +56,17 @@ export const useBookingForm = ({ listing, user, isAuthenticated }: UseBookingFor
           setAvailableBedCount(availableBeds.length);
           
           if (availableBeds.length > 0 && bedsRequired > 0) {
-            // Create a shuffled copy of the beds array
-            const shuffledBeds = [...availableBeds].sort(() => 0.5 - Math.random());
+            const { selectedBeds: newSelectedBeds, bedNumbers } = selectAvailableBeds(
+              availableBeds,
+              bedsRequired
+            );
             
-            // Take only the number of beds required
-            const selectedBedCount = Math.min(bedsRequired, shuffledBeds.length);
-            const newSelectedBeds = shuffledBeds.slice(0, selectedBedCount).map(bed => bed.id);
-            
-            console.log("Available beds:", availableBeds.map(b => b.bedNumber));
-            console.log("Selected beds:", newSelectedBeds);
-            console.log("Selected bed numbers:", newSelectedBeds.map(id => {
-              const bed = availableBeds.find(b => b.id === id);
-              return bed ? bed.bedNumber : 'unknown';
-            }));
+            console.log("Room selection updated:", {
+              roomId: selectedRoom,
+              availableBedCount: availableBeds.length,
+              bedsRequired,
+              selectedBedNumbers: bedNumbers
+            });
             
             setSelectedBeds(newSelectedBeds);
           } else {

@@ -14,16 +14,20 @@ const BedSelector: React.FC<BedSelectorProps> = ({
   bedsRequired,
 }) => {
   return (
-    <div>
+    <div className="space-y-2">
       <p className="text-sm text-muted-foreground">
-        {bedsRequired} bed{bedsRequired > 1 ? 's' : ''} will be automatically assigned
+        {bedsRequired === 1 ? (
+          "We'll find you a cozy bed to stay in! 🛏️"
+        ) : (
+          `We'll reserve ${bedsRequired} comfortable beds just for you! 🛏️`
+        )}
       </p>
       {selectedBeds.length > 0 && (
-        <p className="text-xs text-muted-foreground mt-1">
-          Assigned bed numbers: {selectedBeds.map(id => {
+        <p className="text-xs text-muted-foreground">
+          Selected bed{selectedBeds.length > 1 ? 's' : ''}: {selectedBeds.map(id => {
             const bed = beds.find(b => b.id === id);
             return bed ? bed.bedNumber : '';
-          }).join(', ')}
+          }).join(', ')} ✨
         </p>
       )}
     </div>
