@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -54,10 +55,22 @@ export const useBookingForm = ({ listing, user, isAuthenticated }: UseBookingFor
           setBeds(availableBeds);
           setAvailableBedCount(availableBeds.length);
           
-          if (availableBeds.length > 0) {
-            const shuffledBeds = [...availableBeds].sort(() => Math.random() - 0.5);
-            const randomBeds = shuffledBeds.slice(0, bedsRequired).map(bed => bed.id);
-            setSelectedBeds(randomBeds);
+          if (availableBeds.length > 0 && bedsRequired > 0) {
+            // Create a shuffled copy of the beds array
+            const shuffledBeds = [...availableBeds].sort(() => 0.5 - Math.random());
+            
+            // Take only the number of beds required
+            const selectedBedCount = Math.min(bedsRequired, shuffledBeds.length);
+            const newSelectedBeds = shuffledBeds.slice(0, selectedBedCount).map(bed => bed.id);
+            
+            console.log("Available beds:", availableBeds.map(b => b.bedNumber));
+            console.log("Selected beds:", newSelectedBeds);
+            console.log("Selected bed numbers:", newSelectedBeds.map(id => {
+              const bed = availableBeds.find(b => b.id === id);
+              return bed ? bed.bedNumber : 'unknown';
+            }));
+            
+            setSelectedBeds(newSelectedBeds);
           } else {
             setSelectedBeds([]);
           }
