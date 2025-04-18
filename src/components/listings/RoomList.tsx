@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from "react";
-import { Room, Bed as BedType } from "@/types";
+import { Room, Bed as BedType, Booking } from "@/types";
 import { roomAPI, bedAPI } from "@/services/roomApi";
+import { bookingsAPI } from "@/services/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Bed, BedDouble } from "lucide-react";
@@ -94,7 +95,7 @@ const RoomList: React.FC<RoomListProps> = ({ pgId }) => {
                       {roomBeds.length ? (
                         roomBeds.map((bed) => (
                           <Badge
-                            key={bed.id}
+                            key={`bed_${bed.id}`}
                             variant="outline"
                             className={`flex items-center gap-1 ${
                               bed.isOccupied

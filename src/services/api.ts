@@ -3,16 +3,13 @@ import { mockUsers, mockPGListings, mockBookings } from '../utils/mockData';
 import { deleteImage } from './storage';
 import { bedAPI } from './roomApi';
 
-// Helper to simulate API delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Local storage keys
 const USER_KEY = 'pg_finder_user';
-const USERS_KEY = 'pg_finder_users';  // New key for storing all users
+const USERS_KEY = 'pg_finder_users';
 const LISTINGS_KEY = 'pg_finder_listings';
 const BOOKINGS_KEY = 'pg_finder_bookings';
 
-// Initialize local storage with mock data
 const initializeStorage = () => {
   if (!localStorage.getItem(LISTINGS_KEY)) {
     localStorage.setItem(LISTINGS_KEY, JSON.stringify(mockPGListings));
@@ -27,13 +24,11 @@ const initializeStorage = () => {
 
 initializeStorage();
 
-// Helper function to get all users
 const getAllUsers = (): User[] => {
   const usersStr = localStorage.getItem(USERS_KEY);
   return usersStr ? JSON.parse(usersStr) : [];
 };
 
-// Helper function to save a user
 const saveUser = (user: User): void => {
   const users = getAllUsers();
   const existingUserIndex = users.findIndex(u => u.email === user.email);
@@ -47,12 +42,10 @@ const saveUser = (user: User): void => {
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
 };
 
-// Auth APIs
 export const authAPI = {
   login: async (email: string, password: string): Promise<User> => {
     await delay(500);
     
-    // Get all users from storage
     const users = getAllUsers();
     const user = users.find(u => u.email === email);
     
@@ -60,7 +53,6 @@ export const authAPI = {
       throw new Error('Invalid credentials');
     }
     
-    // Store in local storage
     localStorage.setItem(USER_KEY, JSON.stringify(user));
     
     return user;
@@ -69,7 +61,6 @@ export const authAPI = {
   register: async (name: string, email: string, password: string, role: UserRole): Promise<User> => {
     await delay(500);
     
-    // Check if user already exists
     const users = getAllUsers();
     const existingUser = users.find(u => u.email === email);
     
@@ -77,7 +68,6 @@ export const authAPI = {
       throw new Error('User with this email already exists');
     }
     
-    // Create new user
     const newUser: User = {
       id: `user_${Date.now()}`,
       name,
@@ -85,10 +75,8 @@ export const authAPI = {
       role,
     };
     
-    // Save user to storage
     saveUser(newUser);
     
-    // Store current user in local storage
     localStorage.setItem(USER_KEY, JSON.stringify(newUser));
     
     return newUser;
@@ -105,7 +93,6 @@ export const authAPI = {
   }
 };
 
-// PG Listings APIs
 export const pgListingsAPI = {
   getListings: async (): Promise<PGListing[]> => {
     await delay(300);
@@ -151,7 +138,6 @@ export const pgListingsAPI = {
       return false;
     }
     
-    // Delete the image associated with the listing if it exists
     if (listingToDelete.imageUrl) {
       await deleteImage(listingToDelete.imageUrl);
     }
@@ -204,7 +190,6 @@ export const pgListingsAPI = {
   }
 };
 
-// Bookings APIs
 export const bookingsAPI = {
   getBookings: async (): Promise<Booking[]> => {
     await delay(300);
@@ -223,6 +208,16 @@ export const bookingsAPI = {
     
     const updatedBookings = [...bookings, newBooking];
     localStorage.setItem(BOOKINGS_KEY, JSON.stringify(updatedBookings));
+    
+    if (booking.bedId) {
+      const bed = await bedAPI.getBedById(booking.bedId);
+      if (bed) {
+        await bedAPI.updateBed({
+          ...bed,
+          isOccupied: true
+        });
+      }
+    }
     
     return newBooking;
   },
@@ -243,11 +238,9 @@ export const bookingsAPI = {
       status,
     };
     
-    // If status is confirmed and there's a bedId, update the bed occupancy
     if (status === 'confirmed' && booking.bedId) {
       const bed = await bedAPI.getBedById(booking.bedId);
       if (bed) {
-        // Mark the bed as occupied
         await bedAPI.updateBed({
           ...bed,
           isOccupied: true
@@ -255,11 +248,9 @@ export const bookingsAPI = {
       }
     }
     
-    // If status was previously confirmed but now rejected, and there's a bedId, update bed occupancy
     if (booking.status === 'confirmed' && status === 'rejected' && booking.bedId) {
       const bed = await bedAPI.getBedById(booking.bedId);
       if (bed) {
-        // Mark the bed as vacant again
         await bedAPI.updateBed({
           ...bed,
           isOccupied: false
