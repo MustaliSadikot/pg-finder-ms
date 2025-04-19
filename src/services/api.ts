@@ -236,6 +236,8 @@ export const bookingsAPI = {
           ...bed,
           isOccupied: true
         });
+      } else if (bed && bed.isOccupied) {
+        console.warn('Attempted to mark already occupied bed:', booking.bedId);
       }
     }
     

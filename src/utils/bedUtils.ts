@@ -28,3 +28,8 @@ export const selectAvailableBeds = (
     bedNumbers: selectedBeds.map(bed => bed.bedNumber)
   };
 };
+
+// Function to get a unique set of bed IDs
+export const getUniqueBedIds = (bedIds: string[]): string[] => {
+  return [...new Set(bedIds)];
+};

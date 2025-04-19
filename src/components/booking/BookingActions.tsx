@@ -24,8 +24,8 @@ const BookingActions: React.FC<BookingActionsProps> = ({
   }
 
   const isDisabled = updatingId === bookingId;
-  const bedOccupiedTitle = bedDetails?.isOccupied ? "This bed is already occupied" : "Confirm booking";
-
+  const isOccupied = bedDetails?.isOccupied;
+  
   return (
     <div className="flex space-x-2">
       <Button 
@@ -33,8 +33,8 @@ const BookingActions: React.FC<BookingActionsProps> = ({
         size="sm"
         className="border-green-500 text-green-500 hover:bg-green-50 hover:text-green-600"
         onClick={() => onUpdateStatus(bookingId, "confirmed")}
-        disabled={isDisabled}
-        title={bedOccupiedTitle}
+        disabled={isDisabled || isOccupied}
+        title={isOccupied ? "This bed is already occupied" : "Confirm booking"}
       >
         <Check className="h-4 w-4 mr-1" />
         Confirm
