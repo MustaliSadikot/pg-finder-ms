@@ -46,7 +46,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <BookingPrice listing={listing} />
+          <BookingPrice booking={{ pgDetails: listing }} />
           
           <div className="border-t pt-4">
             <div className="space-y-4">

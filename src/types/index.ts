@@ -34,6 +34,7 @@ export interface Bed {
   roomId: string;
   bedNumber: number;
   isOccupied: boolean;
+  tenantId?: string | null;
 }
 
 export interface Booking {
@@ -60,4 +61,10 @@ export interface FilterOptions {
   location: string;
   genderPreference: 'male' | 'female' | 'any' | '';
   amenities: string[];
+}
+
+export interface BookingWithDetails extends Booking {
+  pgDetails?: PGListing;
+  roomDetails?: Room;
+  bedDetails?: Bed;
 }

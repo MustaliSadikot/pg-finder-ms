@@ -1,16 +1,13 @@
 
 import React from "react";
-import { Booking } from "@/types";
+import { BookingWithDetails } from "@/types";
 
 interface BookingPriceProps {
-  booking: Booking & {
-    pgDetails?: any;
-  };
+  booking: BookingWithDetails;
 }
 
 const BookingPrice: React.FC<BookingPriceProps> = ({ booking }) => {
-  // Make sure pgDetails exists and has a price before rendering
-  if (!booking.pgDetails) {
+  if (!booking.pgDetails?.price) {
     return null;
   }
   
