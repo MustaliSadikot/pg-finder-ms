@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Booking, PGListing, Room, Bed } from "@/types";
 import BookingStatusBadge from "./BookingStatusBadge";
@@ -7,8 +8,7 @@ import BookingDetail from "./BookingDetail";
 import LeavePGButton from "./LeavePGButton";
 
 interface BookingCardProps {
-  booking: {
-    ...Booking;
+  booking: Booking & {
     pgDetails?: PGListing;
     roomDetails?: Room;
     bedDetails?: Bed;
