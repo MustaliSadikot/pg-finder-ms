@@ -234,20 +234,23 @@ export const bookingsAPI = {
       if (bed && !bed.isOccupied) {
         await bedAPI.updateBed({
           ...bed,
-          isOccupied: true
+          isOccupied: true,
+          tenant_id: booking.tenantId
         });
       } else if (bed && bed.isOccupied) {
         console.warn('Attempted to mark already occupied bed:', booking.bedId);
       }
     }
     
-    if (booking.status === 'confirmed' && status === 'rejected' && booking.bedId) {
+    if ((booking.status === 'confirmed' && status === 'rejected') || 
+        (booking.status === 'confirmed' && status === 'completed')) {
       console.log('Marking bed as vacant:', booking.bedId);
       const bed = await bedAPI.getBedById(booking.bedId);
       if (bed) {
         await bedAPI.updateBed({
           ...bed,
-          isOccupied: false
+          isOccupied: false,
+          tenant_id: null
         });
       }
     }
