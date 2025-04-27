@@ -2,14 +2,14 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Check, X } from "lucide-react";
-import { Bed } from "@/types";
+import { Bed, Booking } from "@/types";
 
 interface BookingActionsProps {
-  status: string;
+  status: Booking["status"];
   bookingId: string;
   bedDetails?: Bed;
   updatingId: string | null;
-  onUpdateStatus: (bookingId: string, status: 'confirmed' | 'rejected') => void;
+  onUpdateStatus: (bookingId: string, status: Booking["status"]) => void;
 }
 
 const BookingActions: React.FC<BookingActionsProps> = ({

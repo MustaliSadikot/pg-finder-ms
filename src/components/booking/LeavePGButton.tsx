@@ -15,6 +15,7 @@ import {
 import { LogOut } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { bookingsAPI } from "@/services/api";
+import { Booking } from "@/types";
 
 interface LeavePGButtonProps {
   bookingId: string;
@@ -28,7 +29,7 @@ const LeavePGButton: React.FC<LeavePGButtonProps> = ({ bookingId, onSuccess }) =
   const handleLeavePG = async () => {
     setIsProcessing(true);
     try {
-      await bookingsAPI.updateBookingStatus(bookingId, "completed");
+      await bookingsAPI.updateBookingStatus(bookingId, "completed" as Booking["status"]);
       toast({
         title: "Success",
         description: "You have successfully left the PG.",

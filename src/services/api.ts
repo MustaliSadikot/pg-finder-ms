@@ -235,7 +235,7 @@ export const bookingsAPI = {
         await bedAPI.updateBed({
           ...bed,
           isOccupied: true,
-          tenant_id: booking.tenantId
+          tenantId: booking.tenantId
         });
       } else if (bed && bed.isOccupied) {
         console.warn('Attempted to mark already occupied bed:', booking.bedId);
@@ -250,7 +250,7 @@ export const bookingsAPI = {
         await bedAPI.updateBed({
           ...bed,
           isOccupied: false,
-          tenant_id: null
+          tenantId: null
         });
       }
     }

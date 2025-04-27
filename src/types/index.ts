@@ -1,4 +1,3 @@
-
 export type UserRole = 'tenant' | 'owner';
 
 export interface User {
@@ -44,7 +43,7 @@ export interface Booking {
   roomId?: string;
   bedId?: string;
   bookingDate: string;
-  status: 'pending' | 'confirmed' | 'rejected';
+  status: 'pending' | 'confirmed' | 'rejected' | 'completed';
 }
 
 export interface AuthState {

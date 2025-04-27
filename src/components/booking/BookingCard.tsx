@@ -30,7 +30,7 @@ const BookingCard: React.FC<BookingCardProps> = ({
         <div>
           <h3 className="text-lg font-semibold">{booking.pgDetails?.name}</h3>
           <p className="text-muted-foreground text-sm">
-            <BookingDetail booking={booking} />
+            <BookingDetail booking={booking} forOwner={forOwner} />
           </p>
           <BookingPrice booking={booking} />
         </div>
@@ -39,11 +39,12 @@ const BookingCard: React.FC<BookingCardProps> = ({
           {booking.status === "confirmed" && !forOwner && (
             <LeavePGButton 
               bookingId={booking.id} 
-              onSuccess={() => onUpdateStatus(booking.id, "completed")}
+              onSuccess={() => onUpdateStatus(booking.id, "completed" as Booking["status"])}
             />
           )}
           {forOwner && booking.status === "pending" && (
             <BookingActions
+              status={booking.status}
               bookingId={booking.id}
               updatingId={updatingId}
               onUpdateStatus={onUpdateStatus}
