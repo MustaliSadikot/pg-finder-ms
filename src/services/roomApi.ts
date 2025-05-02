@@ -1,146 +1,185 @@
 
-import { Room, Bed } from '../types';
+import { Room, Bed } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
 
-// Simulate network delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-// Local storage keys
-const ROOMS_KEY = 'pg_finder_rooms';
-const BEDS_KEY = 'pg_finder_beds';
-
-// Initialize local storage with empty arrays if not exists
-const initializeStorage = () => {
-  if (!localStorage.getItem(ROOMS_KEY)) {
-    localStorage.setItem(ROOMS_KEY, JSON.stringify([]));
-  }
-  if (!localStorage.getItem(BEDS_KEY)) {
-    localStorage.setItem(BEDS_KEY, JSON.stringify([]));
-  }
+// Helper function to convert Supabase Room to our Room type
+const mapSupabaseRoomToModel = (room: any): Room => {
+  return {
+    id: room.id,
+    pg_id: room.pg_id,
+    room_number: room.room_number,
+    capacity: room.capacity,
+    capacity_per_bed: room.capacity_per_bed || 1,
+    created_at: room.created_at,
+    // Map for frontend compatibility
+    pgId: room.pg_id,
+    roomNumber: room.room_number,
+    totalBeds: room.capacity,
+    capacityPerBed: room.capacity_per_bed || 1,
+    availability: true, // Default value
+  };
 };
 
-initializeStorage();
+// Helper function to convert Supabase Bed to our Bed type
+const mapSupabaseBedToModel = (bed: any): Bed => {
+  return {
+    id: bed.id,
+    room_id: bed.room_id,
+    bed_number: bed.bed_number,
+    is_occupied: bed.is_occupied,
+    tenant_id: bed.tenant_id,
+    created_at: bed.created_at,
+    updated_at: bed.updated_at,
+    // Map for frontend compatibility
+    roomId: bed.room_id,
+    bedNumber: bed.bed_number,
+    isOccupied: bed.is_occupied,
+    tenantId: bed.tenant_id,
+  };
+};
 
-// Room APIs
+// Helper function to convert our Room type to Supabase format
+const mapModelToSupabaseRoom = (room: Omit<Room, 'id'>): any => {
+  return {
+    pg_id: room.pg_id || room.pgId,
+    room_number: room.room_number || room.roomNumber || '',
+    capacity: room.capacity || room.totalBeds || 1,
+    capacity_per_bed: room.capacity_per_bed || room.capacityPerBed || 1,
+  };
+};
+
+// Helper function to convert our Bed type to Supabase format
+const mapModelToSupabaseBed = (bed: Omit<Bed, 'id'>): any => {
+  return {
+    room_id: bed.room_id || bed.roomId,
+    bed_number: bed.bed_number || bed.bedNumber || 1,
+    is_occupied: bed.is_occupied !== undefined ? bed.is_occupied : bed.isOccupied,
+    tenant_id: bed.tenant_id || bed.tenantId,
+  };
+};
+
 export const roomAPI = {
-  getRooms: async (): Promise<Room[]> => {
-    await delay(300);
-    const roomsStr = localStorage.getItem(ROOMS_KEY);
-    return roomsStr ? JSON.parse(roomsStr) : [];
-  },
-  
   getRoomsByPGId: async (pgId: string): Promise<Room[]> => {
-    await delay(300);
-    const rooms = await roomAPI.getRooms();
-    return rooms.filter(room => room.pgId === pgId);
-  },
-  
-  addRoom: async (room: Omit<Room, 'id'>): Promise<Room> => {
-    await delay(500);
+    const { data, error } = await supabase
+      .from('rooms')
+      .select('*')
+      .eq('pg_id', pgId);
     
-    const rooms = await roomAPI.getRooms();
-    const newRoom: Room = {
-      ...room,
-      id: `room_${Date.now()}`,
-    };
-    
-    const updatedRooms = [...rooms, newRoom];
-    localStorage.setItem(ROOMS_KEY, JSON.stringify(updatedRooms));
-    
-    return newRoom;
-  },
-  
-  updateRoom: async (room: Room): Promise<Room> => {
-    await delay(500);
-    
-    const rooms = await roomAPI.getRooms();
-    const updatedRooms = rooms.map(r => 
-      r.id === room.id ? room : r
-    );
-    
-    localStorage.setItem(ROOMS_KEY, JSON.stringify(updatedRooms));
-    
-    return room;
-  },
-  
-  deleteRoom: async (id: string): Promise<boolean> => {
-    await delay(500);
-    
-    const rooms = await roomAPI.getRooms();
-    const updatedRooms = rooms.filter(r => r.id !== id);
-    localStorage.setItem(ROOMS_KEY, JSON.stringify(updatedRooms));
-    
-    // Also delete associated beds
-    const beds = await bedAPI.getBeds();
-    const updatedBeds = beds.filter(b => b.roomId !== id);
-    localStorage.setItem(BEDS_KEY, JSON.stringify(updatedBeds));
-    
-    return true;
+    if (error) throw error;
+    return (data || []).map(mapSupabaseRoomToModel);
   },
   
   getRoomById: async (id: string): Promise<Room | null> => {
-    await delay(300);
+    const { data, error } = await supabase
+      .from('rooms')
+      .select('*')
+      .eq('id', id)
+      .single();
     
-    const rooms = await roomAPI.getRooms();
-    return rooms.find(r => r.id === id) || null;
+    if (error) {
+      if (error.code === 'PGRST116') return null;
+      throw error;
+    }
+    return data ? mapSupabaseRoomToModel(data) : null;
+  },
+
+  addRoom: async (room: Omit<Room, 'id'>): Promise<Room> => {
+    const supabaseRoom = mapModelToSupabaseRoom(room);
+    const { data, error } = await supabase
+      .from('rooms')
+      .insert(supabaseRoom)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return mapSupabaseRoomToModel(data);
+  },
+
+  updateRoom: async (room: Room): Promise<Room> => {
+    const supabaseRoom = mapModelToSupabaseRoom(room);
+    const { data, error } = await supabase
+      .from('rooms')
+      .update(supabaseRoom)
+      .eq('id', room.id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return mapSupabaseRoomToModel(data);
+  },
+
+  deleteRoom: async (id: string): Promise<boolean> => {
+    const { error } = await supabase
+      .from('rooms')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return true;
   },
 };
 
-// Bed APIs
 export const bedAPI = {
-  getBeds: async (): Promise<Bed[]> => {
-    await delay(300);
-    const bedsStr = localStorage.getItem(BEDS_KEY);
-    return bedsStr ? JSON.parse(bedsStr) : [];
-  },
-  
   getBedsByRoomId: async (roomId: string): Promise<Bed[]> => {
-    await delay(300);
-    const beds = await bedAPI.getBeds();
-    return beds.filter(bed => bed.roomId === roomId);
-  },
-  
-  addBed: async (bed: Omit<Bed, 'id'>): Promise<Bed> => {
-    await delay(500);
+    const { data, error } = await supabase
+      .from('beds')
+      .select('*')
+      .eq('room_id', roomId);
     
-    const beds = await bedAPI.getBeds();
-    const newBed: Bed = {
-      ...bed,
-      id: `bed_${Date.now()}`,
-    };
-    
-    const updatedBeds = [...beds, newBed];
-    localStorage.setItem(BEDS_KEY, JSON.stringify(updatedBeds));
-    
-    return newBed;
-  },
-  
-  updateBed: async (bed: Bed): Promise<Bed> => {
-    await delay(500);
-    
-    const beds = await bedAPI.getBeds();
-    const updatedBeds = beds.map(b => 
-      b.id === bed.id ? bed : b
-    );
-    
-    localStorage.setItem(BEDS_KEY, JSON.stringify(updatedBeds));
-    
-    return bed;
-  },
-  
-  deleteBed: async (id: string): Promise<boolean> => {
-    await delay(500);
-    
-    const beds = await bedAPI.getBeds();
-    const updatedBeds = beds.filter(b => b.id !== id);
-    localStorage.setItem(BEDS_KEY, JSON.stringify(updatedBeds));
-    
-    return true;
+    if (error) throw error;
+    return (data || []).map(mapSupabaseBedToModel);
   },
   
   getBedById: async (id: string): Promise<Bed | null> => {
-    await delay(300);
+    const { data, error } = await supabase
+      .from('beds')
+      .select('*')
+      .eq('id', id)
+      .single();
     
-    const beds = await bedAPI.getBeds();
-    return beds.find(b => b.id === id) || null;
+    if (error) {
+      if (error.code === 'PGRST116') return null;
+      throw error;
+    }
+    return data ? mapSupabaseBedToModel(data) : null;
+  },
+  
+  addBed: async (bed: Omit<Bed, 'id'>): Promise<Bed> => {
+    const supabaseBed = mapModelToSupabaseBed(bed);
+    const { data, error } = await supabase
+      .from('beds')
+      .insert(supabaseBed)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return mapSupabaseBedToModel(data);
+  },
+  
+  updateBed: async (bed: Bed): Promise<Bed> => {
+    const supabaseBed = {
+      is_occupied: bed.is_occupied !== undefined ? bed.is_occupied : bed.isOccupied,
+      tenant_id: bed.tenant_id || bed.tenantId
+    };
+
+    const { data, error } = await supabase
+      .from('beds')
+      .update(supabaseBed)
+      .eq('id', bed.id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return mapSupabaseBedToModel(data);
+  },
+  
+  deleteBed: async (id: string): Promise<boolean> => {
+    const { error } = await supabase
+      .from('beds')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return true;
   },
 };

@@ -30,11 +30,13 @@ export interface Room {
   pg_id: string;
   room_number: string;
   capacity: number;
+  capacity_per_bed?: number;  // Added for frontend compatibility
   created_at?: string;
   // Fields for frontend compatibility
   pgId?: string;
   roomNumber?: string;
   totalBeds?: number;
+  capacityPerBed?: number;
   availability?: boolean;
 }
 

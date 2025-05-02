@@ -65,8 +65,8 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
       
       const bedBookings: Record<string, boolean> = {};
       confirmedBookings.forEach(booking => {
-        if (booking.bedId) {
-          bedBookings[booking.bedId] = true;
+        if (booking.bed_id) {
+          bedBookings[booking.bed_id] = true;
         }
       });
       
@@ -94,12 +94,12 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
         return;
       }
 
+      // Map frontend fields to database fields
       const room: Omit<Room, "id"> = {
-        pgId,
-        roomNumber: newRoom.roomNumber || "",
-        totalBeds: Number(newRoom.totalBeds) || 1,
-        capacityPerBed: Number(newRoom.capacityPerBed) || 1,
-        availability: newRoom.availability ?? true,
+        pg_id: pgId,
+        room_number: newRoom.roomNumber || "",
+        capacity: Number(newRoom.totalBeds) || 1,
+        capacity_per_bed: Number(newRoom.capacityPerBed) || 1,
       };
 
       const addedRoom = await roomAPI.addRoom(room);
@@ -110,10 +110,11 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
       const bedsCreationPromises = [];
       
       for (let i = 1; i <= totalBedsToCreate; i++) {
+        // Map frontend fields to database fields
         const bed: Omit<BedType, "id"> = {
-          roomId: addedRoom.id,
-          bedNumber: i,
-          isOccupied: false,
+          room_id: addedRoom.id,
+          bed_number: i,
+          is_occupied: false,
         };
         bedsCreationPromises.push(bedAPI.addBed(bed));
       }
@@ -176,15 +177,16 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
         return;
       }
 
+      // Map frontend fields to database fields
       const bed: Omit<BedType, "id"> = {
-        roomId: newBed.roomId,
-        bedNumber: Number(newBed.bedNumber) || 1,
-        isOccupied: newBed.isOccupied || false,
+        room_id: newBed.roomId,
+        bed_number: Number(newBed.bedNumber) || 1,
+        is_occupied: newBed.isOccupied || false,
       };
 
       const addedBed = await bedAPI.addBed(bed);
       const updatedBeds = { ...beds };
-      updatedBeds[bed.roomId] = [...(updatedBeds[bed.roomId] || []), addedBed];
+      updatedBeds[bed.room_id] = [...(updatedBeds[bed.room_id] || []), addedBed];
       setBeds(updatedBeds);
       setNewBed({
         bedNumber: 1,
@@ -227,7 +229,7 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
   };
 
   const toggleBedOccupancy = async (bed: BedType) => {
-    if (bedsWithBookings[bed.id] && !bed.isOccupied) {
+    if (bedsWithBookings[bed.id] && !bed.is_occupied) {
       toast({
         title: "Cannot change status",
         description: "This bed has an active booking and cannot be changed manually.",
@@ -237,18 +239,24 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
     }
 
     try {
-      const updatedBed = { ...bed, isOccupied: !bed.isOccupied };
-      await bedAPI.updateBed(updatedBed);
+      // Ensure we use the correct field names for Supabase
+      const updatedBed: Partial<BedType> = { 
+        id: bed.id,
+        is_occupied: !bed.is_occupied,
+        room_id: bed.room_id
+      };
+      
+      await bedAPI.updateBed(updatedBed as BedType);
       
       const updatedBeds = { ...beds };
-      updatedBeds[bed.roomId] = updatedBeds[bed.roomId].map(b => 
-        b.id === bed.id ? updatedBed : b
+      updatedBeds[bed.room_id] = updatedBeds[bed.room_id].map(b => 
+        b.id === bed.id ? { ...b, is_occupied: !bed.is_occupied } : b
       );
       setBeds(updatedBeds);
       
       toast({
         title: "Success",
-        description: `Bed marked as ${updatedBed.isOccupied ? 'occupied' : 'vacant'}`,
+        description: `Bed marked as ${!bed.is_occupied ? 'occupied' : 'vacant'}`,
       });
     } catch (error) {
       toast({
@@ -261,7 +269,9 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
 
   const toggleRoomAvailability = async (room: Room) => {
     try {
+      // For now, we'll just update the local state as availability is a frontend-only property
       const updatedRoom = { ...room, availability: !room.availability };
+      // We would need to add this field to the database if it should be persisted
       await roomAPI.updateRoom(updatedRoom);
       
       setRooms(rooms.map(r => r.id === room.id ? updatedRoom : r));
@@ -282,6 +292,11 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
   if (loading) {
     return <div className="text-center my-8">Loading rooms...</div>;
   }
+
+  // Helper function to get capacityPerBed or capacity_per_bed
+  const getCapacityPerBed = (room: Room): number => {
+    return room.capacityPerBed || room.capacity_per_bed || 1;
+  };
 
   return (
     <div className="space-y-6">
@@ -369,7 +384,7 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
                     <option value="">Select a room</option>
                     {rooms.map((room) => (
                       <option key={room.id} value={room.id}>
-                        {room.roomNumber}
+                        {room.room_number || room.roomNumber}
                       </option>
                     ))}
                   </select>
@@ -406,7 +421,7 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
             <Card key={room.id}>
               <CardHeader className="pb-2">
                 <div className="flex justify-between items-center">
-                  <CardTitle className="text-xl">Room {room.roomNumber}</CardTitle>
+                  <CardTitle className="text-xl">Room {room.room_number || room.roomNumber}</CardTitle>
                   <div className="flex space-x-2">
                     <Badge
                       className={`cursor-pointer ${
@@ -432,7 +447,7 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
               <CardContent>
                 <div className="mb-4">
                   <p className="text-sm text-muted-foreground">
-                    <span className="font-medium">Capacity:</span> {room.totalBeds} beds, {room.capacityPerBed} {room.capacityPerBed > 1 ? "persons" : "person"} per bed
+                    <span className="font-medium">Capacity:</span> {room.capacity || room.totalBeds} beds, {getCapacityPerBed(room)} {getCapacityPerBed(room) > 1 ? "persons" : "person"} per bed
                   </p>
                 </div>
 
@@ -447,21 +462,21 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
                         <div
                           key={bed.id}
                           className={`p-3 rounded-md flex justify-between items-center border ${
-                            bed.isOccupied ? "bg-red-50" : "bg-green-50"
+                            bed.is_occupied || bed.isOccupied ? "bg-red-50" : "bg-green-50"
                           }`}
                         >
                           <div>
-                            <p className="font-medium">Bed #{bed.bedNumber}</p>
+                            <p className="font-medium">Bed #{bed.bed_number || bed.bedNumber}</p>
                             <Badge
                               variant="outline"
                               className={`mt-1 cursor-pointer ${
-                                bed.isOccupied
+                                bed.is_occupied || bed.isOccupied
                                   ? "bg-red-100 text-red-800 hover:bg-red-200"
                                   : "bg-green-100 text-green-800 hover:bg-green-200"
                               } ${bedsWithBookings[bed.id] ? "opacity-50" : ""}`}
                               onClick={() => toggleBedOccupancy(bed)}
                             >
-                              {bed.isOccupied ? "Occupied" : "Vacant"}
+                              {bed.is_occupied || bed.isOccupied ? "Occupied" : "Vacant"}
                               {bedsWithBookings[bed.id] && (
                                 <Info className="ml-1 h-3 w-3" aria-label="This bed has an active booking" />
                               )}

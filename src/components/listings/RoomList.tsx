@@ -1,8 +1,7 @@
 
 import React, { useState, useEffect } from "react";
-import { Room, Bed as BedType, Booking } from "@/types";
+import { Room, Bed as BedType } from "@/types";
 import { roomAPI, bedAPI } from "@/services/roomApi";
-import { bookingsAPI } from "@/services/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Bed, BedDouble } from "lucide-react";
@@ -55,7 +54,17 @@ const RoomList: React.FC<RoomListProps> = ({ pgId }) => {
   }
 
   const countVacantBeds = (roomBeds: BedType[]) => {
-    return roomBeds.filter(bed => !bed.isOccupied).length;
+    return roomBeds.filter(bed => !bed.is_occupied && !bed.isOccupied).length;
+  };
+
+  // Helper function to get room capacity per bed with fallbacks
+  const getCapacityPerBed = (room: Room): number => {
+    return room.capacityPerBed || room.capacity_per_bed || 1;
+  };
+
+  // Helper function to get total beds
+  const getTotalBeds = (room: Room): number => {
+    return room.totalBeds || room.capacity || 0;
   };
 
   return (
@@ -65,28 +74,30 @@ const RoomList: React.FC<RoomListProps> = ({ pgId }) => {
         {rooms.filter(room => room.availability).map((room) => {
           const roomBeds = beds[room.id] || [];
           const vacantBeds = countVacantBeds(roomBeds);
+          const totalBeds = getTotalBeds(room);
+          const capacityPerBed = getCapacityPerBed(room);
           
           return (
             <Card key={room.id}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">Room {room.roomNumber}</CardTitle>
+                <CardTitle className="text-base">Room {room.room_number || room.roomNumber}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span>Total Capacity:</span>
-                    <span className="font-medium">{room.totalBeds * room.capacityPerBed} persons</span>
+                    <span className="font-medium">{totalBeds * capacityPerBed} persons</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span>Beds:</span>
                     <span className="font-medium">
-                      {room.totalBeds} ({room.capacityPerBed} {room.capacityPerBed > 1 ? "persons" : "person"} per bed)
+                      {totalBeds} ({capacityPerBed} {capacityPerBed > 1 ? "persons" : "person"} per bed)
                     </span>
                   </div>
                   
                   <div className="flex justify-between text-sm">
                     <span>Available Beds:</span>
-                    <span className="font-medium text-green-600">{vacantBeds} of {room.totalBeds}</span>
+                    <span className="font-medium text-green-600">{vacantBeds} of {totalBeds}</span>
                   </div>
                   
                   <div className="pt-2">
@@ -98,13 +109,13 @@ const RoomList: React.FC<RoomListProps> = ({ pgId }) => {
                             key={bed.id}
                             variant="outline"
                             className={`flex items-center gap-1 ${
-                              bed.isOccupied
+                              bed.is_occupied || bed.isOccupied
                                 ? "bg-red-50 text-red-700"
                                 : "bg-green-50 text-green-700"
                             }`}
                           >
                             <BedDouble className="h-3 w-3" />
-                            Bed {bed.bedNumber}: {bed.isOccupied ? "Occupied" : "Vacant"}
+                            Bed {bed.bed_number || bed.bedNumber}: {bed.is_occupied || bed.isOccupied ? "Occupied" : "Vacant"}
                           </Badge>
                         ))
                       ) : (

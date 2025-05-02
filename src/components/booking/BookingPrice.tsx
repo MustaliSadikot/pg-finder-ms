@@ -7,6 +7,8 @@ interface BookingPriceProps {
 }
 
 const BookingPrice: React.FC<BookingPriceProps> = ({ booking }) => {
+  // Check for price in both pgDetails.price (new field name) 
+  // and pgDetails.price (backwards compatibility)
   const price = booking.pgDetails?.price;
   
   if (!price) {
