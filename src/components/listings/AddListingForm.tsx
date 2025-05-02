@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -148,9 +147,12 @@ const AddListingForm: React.FC = () => {
         }
       }
 
+      // Construct the listing with both backend and frontend properties
       const newListing = await pgListingsAPI.addListing({
+        owner_id: user.id,
         ownerId: user.id,
         name: data.name,
+        address: data.location,
         location: data.location,
         price: data.price,
         genderPreference: data.genderPreference,
@@ -173,6 +175,7 @@ const AddListingForm: React.FC = () => {
       form.reset();
       setImagePreview(null);
     } catch (error) {
+      console.error("Error adding listing:", error);
       toast({
         title: "Failed to add listing",
         description: "There was an error adding your PG listing",

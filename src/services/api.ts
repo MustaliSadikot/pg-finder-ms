@@ -387,7 +387,7 @@ export const bookingsAPI = {
   },
 };
 
-// Update room APIs to use Supabase
+// Room APIs
 export const roomAPI = {
   getRoomsByPGId: async (pgId: string): Promise<Room[]> => {
     const { data, error } = await supabase
@@ -414,7 +414,7 @@ export const roomAPI = {
   },
 };
 
-// Export bed APIs
+// Bed APIs
 export const bedAPI = {
   getBedsByRoomId: async (roomId: string): Promise<Bed[]> => {
     const { data, error } = await supabase

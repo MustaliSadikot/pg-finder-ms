@@ -8,6 +8,7 @@ export interface User {
   role: UserRole;
 }
 
+// Base interface that matches Supabase database schema
 export interface PGListing {
   id: string;
   owner_id: string;
