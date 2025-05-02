@@ -1,3 +1,4 @@
+
 import { User, PGListing, Booking, UserRole, FilterOptions, Room, Bed } from '../types';
 import { mockUsers, mockPGListings, mockBookings } from '../utils/mockData';
 import { deleteImage } from './storage';
@@ -90,10 +91,12 @@ const mapSupabaseBedToModel = (bed: any): Bed => {
   return {
     id: bed.id,
     room_id: bed.room_id,
+    bed_number: bed.bed_number,
     is_occupied: bed.is_occupied,
     tenant_id: bed.tenant_id,
     // Map for frontend compatibility
     roomId: bed.room_id,
+    bedNumber: bed.bed_number,
     isOccupied: bed.is_occupied,
     tenantId: bed.tenant_id,
   };
@@ -102,9 +105,38 @@ const mapSupabaseBedToModel = (bed: any): Bed => {
 // Helper function to convert our Bed type to Supabase format
 const mapModelToSupabaseBed = (bed: Omit<Bed, 'id'>): any => {
   return {
-    room_id: bed.room_id,
-    is_occupied: bed.is_occupied,
-    tenant_id: bed.tenant_id,
+    room_id: bed.room_id || bed.roomId,
+    bed_number: bed.bed_number || bed.bedNumber,
+    is_occupied: bed.is_occupied !== undefined ? bed.is_occupied : bed.isOccupied,
+    tenant_id: bed.tenant_id || bed.tenantId,
+  };
+};
+
+// Helper function for Room conversions
+const mapSupabaseRoomToModel = (room: any): Room => {
+  return {
+    id: room.id,
+    pg_id: room.pg_id,
+    room_number: room.room_number,
+    capacity: room.capacity,
+    capacity_per_bed: room.capacity_per_bed || 1,
+    created_at: room.created_at,
+    // Map for frontend compatibility
+    pgId: room.pg_id,
+    roomNumber: room.room_number,
+    totalBeds: room.capacity,
+    capacityPerBed: room.capacity_per_bed || 1,
+    availability: true, // Default value
+  };
+};
+
+// Helper function to convert our Room type to Supabase format
+const mapModelToSupabaseRoom = (room: Omit<Room, 'id'>): any => {
+  return {
+    pg_id: room.pg_id || room.pgId,
+    room_number: room.room_number || room.roomNumber || '',
+    capacity: room.capacity || room.totalBeds || 1,
+    capacity_per_bed: room.capacity_per_bed || room.capacityPerBed || 1,
   };
 };
 
@@ -385,7 +417,7 @@ export const roomAPI = {
     const { data, error } = await supabase
       .from('rooms')
       .select('*')
-      .eq('listing_id', listingId);
+      .eq('pg_id', listingId);
     
     if (error) throw error;
     return (data || []).map(mapSupabaseRoomToModel);
@@ -446,7 +478,10 @@ export const bedAPI = {
   updateBed: async (bed: Bed): Promise<Bed> => {
     const { data, error } = await supabase
       .from('beds')
-      .update(mapModelToSupabaseBed(bed))
+      .update({
+        is_occupied: bed.is_occupied !== undefined ? bed.is_occupied : bed.isOccupied,
+        tenant_id: bed.tenant_id || bed.tenantId
+      })
       .eq('id', bed.id)
       .select()
       .single();

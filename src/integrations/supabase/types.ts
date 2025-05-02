@@ -184,6 +184,7 @@ export type Database = {
       rooms: {
         Row: {
           capacity: number
+          capacity_per_bed: number
           created_at: string | null
           id: string
           pg_id: string | null
@@ -191,6 +192,7 @@ export type Database = {
         }
         Insert: {
           capacity: number
+          capacity_per_bed?: number
           created_at?: string | null
           id?: string
           pg_id?: string | null
@@ -198,6 +200,7 @@ export type Database = {
         }
         Update: {
           capacity?: number
+          capacity_per_bed?: number
           created_at?: string | null
           id?: string
           pg_id?: string | null
