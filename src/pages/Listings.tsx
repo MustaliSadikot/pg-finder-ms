@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Layout from "@/components/common/Layout";
 import PGCard from "@/components/listings/PGCard";
 import FilterSidebar from "@/components/listings/FilterSidebar";
@@ -10,6 +10,7 @@ import { Filter, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 
 const Listings: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -19,20 +20,38 @@ const Listings: React.FC = () => {
     genderPreference: "",
     amenities: [],
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6; // Number of PG cards to display per page
 
-  const { data: listings, isLoading } = useQuery({
+  const { data: listings, isLoading, error } = useQuery({
     queryKey: ["listings", filters],
     queryFn: () => pgListingsAPI.filterListings(filters),
   });
 
+  useEffect(() => {
+    // Reset to first page when filters change
+    setCurrentPage(1);
+  }, [filters]);
+
+  // Filter listings based on search term
   const filteredListings = listings?.filter((listing) =>
     listing.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    listing.location.toLowerCase().includes(searchTerm.toLowerCase())
+    listing.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    listing.address?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Calculate pagination
+  const totalPages = filteredListings ? Math.ceil(filteredListings.length / itemsPerPage) : 0;
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedListings = filteredListings?.slice(startIndex, startIndex + itemsPerPage);
 
   const handleFilterChange = (newFilters: FilterOptions) => {
     setFilters(newFilters);
   };
+
+  if (error) {
+    console.error("Error loading listings:", error);
+  }
 
   return (
     <Layout>
@@ -81,12 +100,48 @@ const Listings: React.FC = () => {
               <div className="flex justify-center items-center h-64">
                 <p>Loading listings...</p>
               </div>
-            ) : filteredListings && filteredListings.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredListings.map((listing) => (
-                  <PGCard key={listing.id} listing={listing} />
-                ))}
-              </div>
+            ) : paginatedListings && paginatedListings.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {paginatedListings.map((listing) => (
+                    <PGCard key={listing.id} listing={listing} />
+                  ))}
+                </div>
+                
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="mt-8">
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious 
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                          />
+                        </PaginationItem>
+                        
+                        {Array.from({length: totalPages}, (_, i) => i + 1).map(page => (
+                          <PaginationItem key={page}>
+                            <PaginationLink 
+                              isActive={page === currentPage}
+                              onClick={() => setCurrentPage(page)}
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        ))}
+                        
+                        <PaginationItem>
+                          <PaginationNext 
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="flex flex-col items-center justify-center h-64">
                 <p className="text-xl text-gray-500 mb-2">No PGs found</p>

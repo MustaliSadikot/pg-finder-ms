@@ -210,12 +210,27 @@ export const authAPI = {
 
 export const pgListingsAPI = {
   getListings: async (): Promise<PGListing[]> => {
-    const { data, error } = await supabase
-      .from('pg_listings')
-      .select('*');
-    
-    if (error) throw error;
-    return (data || []).map(mapSupabasePGToModel);
+    try {
+      // First try to get from Supabase
+      const { data, error } = await supabase
+        .from('pg_listings')
+        .select('*');
+      
+      if (error) throw error;
+      
+      // If we have data from Supabase, use it
+      if (data && data.length > 0) {
+        return data.map(mapSupabasePGToModel);
+      }
+      
+      // Fallback to mock data if no data in Supabase
+      console.log("No PG listings found in Supabase, falling back to mock data");
+      return mockPGListings;
+    } catch (error) {
+      console.error("Error fetching listings from Supabase:", error);
+      // Fallback to mock data in case of errors
+      return mockPGListings;
+    }
   },
   
   addListing: async (listing: Omit<PGListing, 'id'>): Promise<PGListing> => {
@@ -294,8 +309,8 @@ export const pgListingsAPI = {
       
       // Filter by gender preference if set
       if (filters.genderPreference && filters.genderPreference !== '') {
-        // Only filter if the user selected a specific preference
-        if (listing.genderPreference !== 'any' && listing.genderPreference !== filters.genderPreference) {
+        // Only filter if the user selected a specific preference and the listing has a preference
+        if (listing.genderPreference && listing.genderPreference !== 'any' && listing.genderPreference !== filters.genderPreference) {
           return false;
         }
       }
