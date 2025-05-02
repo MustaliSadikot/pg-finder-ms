@@ -1,4 +1,3 @@
-
 import { User, PGListing, Booking, UserRole, FilterOptions, Room, Bed } from '../types';
 import { mockUsers, mockPGListings, mockBookings } from '../utils/mockData';
 import { deleteImage } from './storage';
@@ -295,6 +294,7 @@ export const pgListingsAPI = {
       
       // Filter by gender preference if set
       if (filters.genderPreference && filters.genderPreference !== '') {
+        // Only filter if the user selected a specific preference (not empty string)
         if (listing.genderPreference !== 'any' && listing.genderPreference !== filters.genderPreference) {
           return false;
         }
