@@ -1,3 +1,4 @@
+
 export type UserRole = 'tenant' | 'owner';
 
 export interface User {
@@ -9,42 +10,63 @@ export interface User {
 
 export interface PGListing {
   id: string;
-  ownerId: string;
+  owner_id: string;
   name: string;
-  location: string;
+  address: string;
   price: number;
-  genderPreference: 'male' | 'female' | 'any';
-  amenities: string[];
-  imageUrl: string;
-  availability: boolean;
   description?: string;
+  // Fields used in frontend components but not in DB
+  ownerId?: string;
+  location?: string;
+  genderPreference?: 'male' | 'female' | 'any';
+  amenities?: string[];
+  imageUrl?: string;
+  availability?: boolean;
 }
 
 export interface Room {
   id: string;
-  pgId: string;
-  roomNumber: string;
-  totalBeds: number;
-  capacityPerBed: number;
-  availability: boolean;
+  pg_id: string;
+  room_number: string;
+  capacity: number;
+  created_at?: string;
+  // Fields for frontend compatibility
+  pgId?: string;
+  roomNumber?: string;
+  totalBeds?: number;
+  availability?: boolean;
 }
 
 export interface Bed {
   id: string;
-  roomId: string;
-  bedNumber: number;
-  isOccupied: boolean;
+  room_id: string;
+  bed_number: number;
+  is_occupied: boolean;
+  tenant_id?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  // Fields for frontend compatibility
+  roomId?: string;
+  bedNumber?: number;
+  isOccupied?: boolean;
   tenantId?: string | null;
 }
 
 export interface Booking {
   id: string;
-  tenantId: string;
-  pgId: string;
+  tenant_id: string;
+  pg_id: string;
+  room_id?: string;
+  bed_id?: string;
+  status: 'pending' | 'confirmed' | 'rejected' | 'completed';
+  created_at?: string;
+  updated_at?: string;
+  // Fields for frontend compatibility
+  tenantId?: string;
+  pgId?: string;
   roomId?: string;
   bedId?: string;
-  bookingDate: string;
-  status: 'pending' | 'confirmed' | 'rejected' | 'completed';
+  bookingDate?: string;
 }
 
 export interface AuthState {

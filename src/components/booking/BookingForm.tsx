@@ -1,8 +1,9 @@
+
 import React from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PGListing } from "@/types";
+import { PGListing, BookingWithDetails } from "@/types";
 import { useBookingForm } from "@/hooks/useBookingForm";
 
 import BookingPrice from "./BookingPrice";
@@ -35,9 +36,18 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
     availableBedCount,
   } = useBookingForm({ listing, user, isAuthenticated });
 
-  if (isOwner() && user?.id === listing.ownerId) {
+  if (isOwner() && user?.id === listing.owner_id) {
     return <OwnerMessage />;
   }
+
+  // Create a mock booking with minimum required fields for BookingPrice component
+  const bookingWithPrice: BookingWithDetails = {
+    id: "",
+    tenant_id: "",
+    pg_id: "",
+    status: "pending",
+    pgDetails: listing,
+  };
 
   return (
     <Card>
@@ -46,7 +56,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <BookingPrice booking={{ pgDetails: listing }} />
+          <BookingPrice booking={bookingWithPrice} />
           
           <div className="border-t pt-4">
             <div className="space-y-4">

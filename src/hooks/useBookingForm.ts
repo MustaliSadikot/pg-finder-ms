@@ -1,10 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { Bed, Room, PGListing, User } from "@/types";
-import { bookingsAPI } from "@/services/api";
-import { roomAPI, bedAPI } from "@/services/roomApi";
+import { bookingsAPI, roomAPI, bedAPI } from "@/services/api";
 import { selectAvailableBeds } from "@/utils/bedUtils";
 
 interface UseBookingFormProps {

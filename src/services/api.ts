@@ -1,7 +1,7 @@
-import { User, PGListing, Booking, UserRole, FilterOptions } from '../types';
+
+import { User, PGListing, Booking, UserRole, FilterOptions, Room, Bed } from '../types';
 import { mockUsers, mockPGListings, mockBookings } from '../utils/mockData';
 import { deleteImage } from './storage';
-import { bedAPI } from './roomApi';
 import { supabase } from '@/integrations/supabase/client';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -24,6 +24,90 @@ const initializeStorage = () => {
 };
 
 initializeStorage();
+
+// Helper function to convert Supabase PG listing to our PGListing type
+const mapSupabasePGToModel = (listing: any): PGListing => {
+  return {
+    id: listing.id,
+    owner_id: listing.owner_id,
+    name: listing.name,
+    address: listing.address,
+    price: listing.price,
+    description: listing.description,
+    // Map for frontend compatibility
+    ownerId: listing.owner_id,
+    location: listing.address,
+    genderPreference: 'any', // Default value
+    amenities: [],
+    imageUrl: '/placeholder.svg',
+    availability: true,
+  };
+};
+
+// Helper function to convert our PGListing type to Supabase format
+const mapModelToSupabasePG = (listing: Omit<PGListing, 'id'>): any => {
+  return {
+    owner_id: listing.owner_id || listing.ownerId,
+    name: listing.name,
+    address: listing.location || listing.address || '',
+    price: listing.price,
+    description: listing.description || '',
+  };
+};
+
+// Helper function to convert Supabase Room to our Room type
+const mapSupabaseRoomToModel = (room: any): Room => {
+  return {
+    id: room.id,
+    pg_id: room.pg_id,
+    room_number: room.room_number,
+    capacity: room.capacity,
+    created_at: room.created_at,
+    // Map for frontend compatibility
+    pgId: room.pg_id,
+    roomNumber: room.room_number,
+    totalBeds: room.capacity,
+    availability: true,
+  };
+};
+
+// Helper function to convert Supabase Bed to our Bed type
+const mapSupabaseBedToModel = (bed: any): Bed => {
+  return {
+    id: bed.id,
+    room_id: bed.room_id,
+    bed_number: bed.bed_number,
+    is_occupied: bed.is_occupied,
+    tenant_id: bed.tenant_id,
+    created_at: bed.created_at,
+    updated_at: bed.updated_at,
+    // Map for frontend compatibility
+    roomId: bed.room_id,
+    bedNumber: bed.bed_number,
+    isOccupied: bed.is_occupied,
+    tenantId: bed.tenant_id,
+  };
+};
+
+// Helper function to convert Supabase Booking to our Booking type
+const mapSupabaseBookingToModel = (booking: any): Booking => {
+  return {
+    id: booking.id,
+    tenant_id: booking.tenant_id,
+    pg_id: booking.pg_id,
+    room_id: booking.room_id,
+    bed_id: booking.bed_id,
+    status: booking.status || 'pending',
+    created_at: booking.created_at,
+    updated_at: booking.updated_at,
+    // Map for frontend compatibility
+    tenantId: booking.tenant_id,
+    pgId: booking.pg_id,
+    roomId: booking.room_id,
+    bedId: booking.bed_id,
+    bookingDate: booking.created_at ? new Date(booking.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+  };
+};
 
 const getAllUsers = (): User[] => {
   const usersStr = localStorage.getItem(USERS_KEY);
@@ -101,30 +185,42 @@ export const pgListingsAPI = {
       .select('*');
     
     if (error) throw error;
-    return data || [];
+    return (data || []).map(mapSupabasePGToModel);
   },
   
   addListing: async (listing: Omit<PGListing, 'id'>): Promise<PGListing> => {
+    const supabaseListing = mapModelToSupabasePG(listing);
     const { data, error } = await supabase
       .from('pg_listings')
-      .insert(listing)
+      .insert(supabaseListing)
       .select()
       .single();
     
     if (error) throw error;
-    return data;
+    return mapSupabasePGToModel(data);
   },
   
   updateListing: async (listing: PGListing): Promise<PGListing> => {
+    const supabaseListing = mapModelToSupabasePG(listing);
     const { data, error } = await supabase
       .from('pg_listings')
-      .update(listing)
+      .update(supabaseListing)
       .eq('id', listing.id)
       .select()
       .single();
     
     if (error) throw error;
-    return data;
+    return mapSupabasePGToModel(data);
+  },
+
+  deleteListing: async (id: string): Promise<boolean> => {
+    const { error } = await supabase
+      .from('pg_listings')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return true;
   },
   
   getListingById: async (id: string): Promise<PGListing | null> => {
@@ -138,7 +234,7 @@ export const pgListingsAPI = {
       if (error.code === 'PGRST116') return null;
       throw error;
     }
-    return data;
+    return mapSupabasePGToModel(data);
   },
   
   getOwnerListings: async (ownerId: string): Promise<PGListing[]> => {
@@ -148,8 +244,43 @@ export const pgListingsAPI = {
       .eq('owner_id', ownerId);
     
     if (error) throw error;
-    return data || [];
+    return (data || []).map(mapSupabasePGToModel);
   },
+
+  filterListings: async (filters: FilterOptions): Promise<PGListing[]> => {
+    // Get all listings and filter client-side for now
+    const listings = await pgListingsAPI.getListings();
+    
+    return listings.filter(listing => {
+      // Filter by price
+      if (listing.price < filters.priceRange.min || listing.price > filters.priceRange.max) {
+        return false;
+      }
+      
+      // Filter by location
+      if (filters.location && !listing.address?.toLowerCase().includes(filters.location.toLowerCase())) {
+        return false;
+      }
+      
+      // Filter by gender preference if set
+      if (filters.genderPreference && filters.genderPreference !== '' && 
+          listing.genderPreference !== 'any' && listing.genderPreference !== filters.genderPreference) {
+        return false;
+      }
+      
+      // Filter by amenities
+      if (filters.amenities.length > 0) {
+        const hasAllAmenities = filters.amenities.every(
+          amenity => listing.amenities?.includes(amenity)
+        );
+        if (!hasAllAmenities) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+  }
 };
 
 export const bookingsAPI = {
@@ -164,18 +295,26 @@ export const bookingsAPI = {
       `);
     
     if (error) throw error;
-    return data || [];
+    return (data || []).map(mapSupabaseBookingToModel);
   },
   
   addBooking: async (booking: Omit<Booking, 'id'>): Promise<Booking> => {
+    const supabaseBooking = {
+      tenant_id: booking.tenantId || booking.tenant_id,
+      pg_id: booking.pgId || booking.pg_id,
+      room_id: booking.roomId || booking.room_id,
+      bed_id: booking.bedId || booking.bed_id,
+      status: booking.status
+    };
+
     const { data, error } = await supabase
       .from('bookings')
-      .insert(booking)
+      .insert(supabaseBooking)
       .select()
       .single();
     
     if (error) throw error;
-    return data;
+    return mapSupabaseBookingToModel(data);
   },
   
   updateBookingStatus: async (bookingId: string, status: Booking['status']): Promise<Booking> => {
@@ -214,7 +353,7 @@ export const bookingsAPI = {
       if (bedError) throw bedError;
     }
 
-    return bookingData;
+    return mapSupabaseBookingToModel(bookingData);
   },
   
   getTenantBookings: async (tenantId: string): Promise<Booking[]> => {
@@ -229,7 +368,7 @@ export const bookingsAPI = {
       .eq('tenant_id', tenantId);
     
     if (error) throw error;
-    return data || [];
+    return (data || []).map(mapSupabaseBookingToModel);
   },
   
   getPGBookings: async (pgId: string): Promise<Booking[]> => {
@@ -244,7 +383,7 @@ export const bookingsAPI = {
       .eq('pg_id', pgId);
     
     if (error) throw error;
-    return data || [];
+    return (data || []).map(mapSupabaseBookingToModel);
   },
 };
 
@@ -257,7 +396,7 @@ export const roomAPI = {
       .eq('pg_id', pgId);
     
     if (error) throw error;
-    return data || [];
+    return (data || []).map(mapSupabaseRoomToModel);
   },
   
   getRoomById: async (id: string): Promise<Room | null> => {
@@ -271,11 +410,11 @@ export const roomAPI = {
       if (error.code === 'PGRST116') return null;
       throw error;
     }
-    return data;
+    return data ? mapSupabaseRoomToModel(data) : null;
   },
 };
 
-// Update bed APIs to use Supabase
+// Export bed APIs
 export const bedAPI = {
   getBedsByRoomId: async (roomId: string): Promise<Bed[]> => {
     const { data, error } = await supabase
@@ -284,7 +423,7 @@ export const bedAPI = {
       .eq('room_id', roomId);
     
     if (error) throw error;
-    return data || [];
+    return (data || []).map(mapSupabaseBedToModel);
   },
   
   getBedById: async (id: string): Promise<Bed | null> => {
@@ -298,18 +437,23 @@ export const bedAPI = {
       if (error.code === 'PGRST116') return null;
       throw error;
     }
-    return data;
+    return data ? mapSupabaseBedToModel(data) : null;
   },
   
   updateBed: async (bed: Bed): Promise<Bed> => {
+    const supabaseBed = {
+      is_occupied: bed.isOccupied !== undefined ? bed.isOccupied : bed.is_occupied,
+      tenant_id: bed.tenantId || bed.tenant_id
+    };
+
     const { data, error } = await supabase
       .from('beds')
-      .update(bed)
+      .update(supabaseBed)
       .eq('id', bed.id)
       .select()
       .single();
     
     if (error) throw error;
-    return data;
+    return mapSupabaseBedToModel(data);
   },
 };

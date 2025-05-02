@@ -7,7 +7,9 @@ interface BookingPriceProps {
 }
 
 const BookingPrice: React.FC<BookingPriceProps> = ({ booking }) => {
-  if (!booking.pgDetails?.price) {
+  const price = booking.pgDetails?.price;
+  
+  if (!price) {
     return null;
   }
   
@@ -15,7 +17,7 @@ const BookingPrice: React.FC<BookingPriceProps> = ({ booking }) => {
     <div className="flex justify-between items-center mt-2">
       <span className="font-medium">Price:</span>
       <span className="font-bold text-pgfinder-primary text-xl">
-        ₹{booking.pgDetails.price}/month
+        ₹{price}/month
       </span>
     </div>
   );
