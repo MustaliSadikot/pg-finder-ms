@@ -1,4 +1,3 @@
-
 import { User, PGListing, Booking, UserRole, FilterOptions, Room, Bed } from '../types';
 import { mockUsers, mockPGListings, mockBookings } from '../utils/mockData';
 import { deleteImage } from './storage';
@@ -83,6 +82,29 @@ const mapModelToSupabaseBooking = (booking: Omit<Booking, 'id'>): any => {
     room_id: booking.room_id || booking.roomId,
     bed_id: booking.bed_id || booking.bedId,
     status: booking.status
+  };
+};
+
+// Helper function to convert Supabase Bed to our Bed type
+const mapSupabaseBedToModel = (bed: any): Bed => {
+  return {
+    id: bed.id,
+    room_id: bed.room_id,
+    is_occupied: bed.is_occupied,
+    tenant_id: bed.tenant_id,
+    // Map for frontend compatibility
+    roomId: bed.room_id,
+    isOccupied: bed.is_occupied,
+    tenantId: bed.tenant_id,
+  };
+};
+
+// Helper function to convert our Bed type to Supabase format
+const mapModelToSupabaseBed = (bed: Omit<Bed, 'id'>): any => {
+  return {
+    room_id: bed.room_id,
+    is_occupied: bed.is_occupied,
+    tenant_id: bed.tenant_id,
   };
 };
 
@@ -355,5 +377,81 @@ export const bookingsAPI = {
     
     if (error) throw error;
     return (data || []).map(mapSupabaseBookingToModel);
+  },
+};
+
+export const roomAPI = {
+  getRoomsByListingId: async (listingId: string): Promise<Room[]> => {
+    const { data, error } = await supabase
+      .from('rooms')
+      .select('*')
+      .eq('listing_id', listingId);
+    
+    if (error) throw error;
+    return (data || []).map(mapSupabaseRoomToModel);
+  },
+  
+  getRoomById: async (id: string): Promise<Room | null> => {
+    const { data, error } = await supabase
+      .from('rooms')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') return null;
+      throw error;
+    }
+    return data ? mapSupabaseRoomToModel(data) : null;
+  },
+  
+  updateRoom: async (room: Room): Promise<Room> => {
+    const { data, error } = await supabase
+      .from('rooms')
+      .update(mapModelToSupabaseRoom(room))
+      .eq('id', room.id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return mapSupabaseRoomToModel(data);
+  },
+};
+
+export const bedAPI = {
+  getBedsByRoomId: async (roomId: string): Promise<Bed[]> => {
+    const { data, error } = await supabase
+      .from('beds')
+      .select('*')
+      .eq('room_id', roomId);
+    
+    if (error) throw error;
+    return (data || []).map(mapSupabaseBedToModel);
+  },
+  
+  getBedById: async (id: string): Promise<Bed | null> => {
+    const { data, error } = await supabase
+      .from('beds')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') return null;
+      throw error;
+    }
+    return data ? mapSupabaseBedToModel(data) : null;
+  },
+  
+  updateBed: async (bed: Bed): Promise<Bed> => {
+    const { data, error } = await supabase
+      .from('beds')
+      .update(mapModelToSupabaseBed(bed))
+      .eq('id', bed.id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return mapSupabaseBedToModel(data);
   },
 };

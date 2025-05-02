@@ -1,38 +1,44 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PGListing, Room, Bed, User, Booking } from '@/types';
+import { PGListing, Room, Bed, User } from '@/types';
 import { bookingsAPI } from '@/services/api';
 import { roomAPI, bedAPI } from '@/services/roomApi';
 import { useToast } from '@/components/ui/use-toast';
+import { selectAvailableBeds } from '@/utils/bedUtils';
 
 interface UseBookingFormParams {
-  pgId: string;
+  listing: PGListing;
   user: User | null;
+  isAuthenticated: boolean;
 }
 
-export const useBookingForm = ({ pgId, user }: UseBookingFormParams) => {
+export const useBookingForm = ({ listing, user, isAuthenticated }: UseBookingFormParams) => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isBooking, setIsBooking] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [beds, setBeds] = useState<Record<string, Bed[]>>({});
-  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
-  const [selectedBed, setSelectedBed] = useState<Bed | null>(null);
-  const [bedsNeeded, setBedsNeeded] = useState(1);
-  const [bookingDate, setBookingDate] = useState<Date | undefined>(new Date());
+  const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
+  const [selectedBeds, setSelectedBeds] = useState<string[]>([]);
+  const [isLoadingRooms, setIsLoadingRooms] = useState(true);
+  const [isLoadingBeds, setIsLoadingBeds] = useState(false);
+  const [bedsRequired, setBedsRequired] = useState(1);
+  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [availableBedCount, setAvailableBedCount] = useState(0);
 
   useEffect(() => {
-    if (pgId) {
+    if (listing?.id) {
       loadRooms();
     }
-  }, [pgId]);
+  }, [listing?.id]);
 
   const loadRooms = async () => {
-    setLoading(true);
+    setIsLoadingRooms(true);
     try {
-      const roomsData = await roomAPI.getRoomsByPGId(pgId);
+      const roomsData = await roomAPI.getRoomsByPGId(listing.id);
       
       // Filter out rooms with no available beds
       const availableRooms = roomsData.filter(room => room.availability !== false);
@@ -49,13 +55,12 @@ export const useBookingForm = ({ pgId, user }: UseBookingFormParams) => {
       
       setBeds(bedsData);
       
-      // Pre-select the first available room and bed if any
+      // Pre-select the first available room if any
       if (availableRooms.length > 0) {
-        setSelectedRoom(availableRooms[0]);
+        setSelectedRoom(availableRooms[0].id);
         
-        if (bedsData[availableRooms[0].id]?.length > 0) {
-          setSelectedBed(bedsData[availableRooms[0].id][0]);
-        }
+        const availableBeds = bedsData[availableRooms[0].id] || [];
+        setAvailableBedCount(availableBeds.length);
       }
     } catch (error) {
       console.error("Error loading rooms:", error);
@@ -65,64 +70,80 @@ export const useBookingForm = ({ pgId, user }: UseBookingFormParams) => {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setIsLoadingRooms(false);
+      setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (selectedRoom) {
+      const availableBeds = beds[selectedRoom] || [];
+      setAvailableBedCount(availableBeds.length);
+      
+      // Reset selected beds when room changes
+      setSelectedBeds([]);
+      setBedsRequired(1);
+    }
+  }, [selectedRoom, beds]);
+
+  useEffect(() => {
+    if (selectedRoom && bedsRequired > 0) {
+      const availableBeds = beds[selectedRoom] || [];
+      
+      if (availableBeds.length >= bedsRequired) {
+        const { selectedBeds: newSelectedBeds } = selectAvailableBeds(
+          availableBeds,
+          bedsRequired
+        );
+        
+        setSelectedBeds(newSelectedBeds);
+      } else {
+        setSelectedBeds([]);
+      }
+    }
+  }, [bedsRequired, selectedRoom, beds]);
 
   const handleRoomChange = (roomId: string) => {
-    const room = rooms.find(r => r.id === roomId) || null;
-    setSelectedRoom(room);
-    setSelectedBed(null);
-    
-    if (room && beds[room.id]?.length > 0) {
-      setSelectedBed(beds[room.id][0]);
-    }
+    setSelectedRoom(roomId);
   };
 
-  const handleBedChange = (bedId: string) => {
-    if (!selectedRoom) return;
-    
-    const bed = beds[selectedRoom.id]?.find(b => b.id === bedId) || null;
-    setSelectedBed(bed);
-  };
-
-  const handleBedsNeededChange = (value: number) => {
-    setBedsNeeded(value);
+  const handleBedsRequiredChange = (value: string) => {
+    setBedsRequired(parseInt(value, 10));
   };
 
   const handleDateChange = (date: Date | undefined) => {
-    setBookingDate(date);
+    setDate(date);
   };
 
-  const handleSubmitBooking = async () => {
-    if (!user || !pgId || !bookingDate) {
+  const handleBooking = async () => {
+    if (!user || !isAuthenticated || !listing?.id || !date) {
       toast({
         title: "Error",
-        description: "Please provide all required information.",
+        description: "Please log in and provide all required information.",
         variant: "destructive",
       });
       return;
     }
 
     try {
-      setLoading(true);
+      setIsBooking(true);
       
       let booking;
       
-      if (selectedRoom && selectedBed) {
-        // Book a specific bed in a specific room
+      if (selectedRoom && selectedBeds.length > 0) {
+        // Book specific beds in a specific room
         const bookingData = {
           tenant_id: user.id,
-          pg_id: pgId,
-          room_id: selectedRoom.id,
-          bed_id: selectedBed.id,
+          pg_id: listing.id,
+          room_id: selectedRoom,
+          bed_id: selectedBeds[0], // For now, just use the first selected bed
           status: 'pending' as const,
           // Frontend compatibility fields
           tenantId: user.id,
-          pgId,
-          roomId: selectedRoom.id,
-          bedId: selectedBed.id,
-          bookingDate: bookingDate.toISOString().split('T')[0],
+          pgId: listing.id,
+          roomId: selectedRoom,
+          bedId: selectedBeds[0],
+          bookingDate: date.toISOString().split('T')[0],
         };
         
         booking = await bookingsAPI.addBooking(bookingData);
@@ -130,14 +151,14 @@ export const useBookingForm = ({ pgId, user }: UseBookingFormParams) => {
         // Book just a room without a specific bed
         const bookingData = {
           tenant_id: user.id,
-          pg_id: pgId,
-          room_id: selectedRoom.id,
+          pg_id: listing.id,
+          room_id: selectedRoom,
           status: 'pending' as const,
           // Frontend compatibility fields
           tenantId: user.id,
-          pgId,
-          roomId: selectedRoom.id,
-          bookingDate: bookingDate.toISOString().split('T')[0],
+          pgId: listing.id,
+          roomId: selectedRoom,
+          bookingDate: date.toISOString().split('T')[0],
         };
         
         booking = await bookingsAPI.addBooking(bookingData);
@@ -145,12 +166,12 @@ export const useBookingForm = ({ pgId, user }: UseBookingFormParams) => {
         // Just book the PG without a specific room or bed
         const bookingData = {
           tenant_id: user.id,
-          pg_id: pgId,
+          pg_id: listing.id,
           status: 'pending' as const,
           // Frontend compatibility fields
           tenantId: user.id,
-          pgId,
-          bookingDate: bookingDate.toISOString().split('T')[0],
+          pgId: listing.id,
+          bookingDate: date.toISOString().split('T')[0],
         };
         
         booking = await bookingsAPI.addBooking(bookingData);
@@ -175,24 +196,28 @@ export const useBookingForm = ({ pgId, user }: UseBookingFormParams) => {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setIsBooking(false);
     }
   };
 
   return {
-    loading,
+    isLoading,
+    isBooking,
     bookingSuccess,
     rooms,
     beds,
     selectedRoom,
-    selectedBed,
-    bedsNeeded,
-    bookingDate,
+    selectedBeds,
+    bedsRequired,
+    date,
+    isLoadingRooms,
+    isLoadingBeds,
+    availableBedCount,
     handleRoomChange,
-    handleBedChange,
-    handleBedsNeededChange,
-    handleDateChange,
-    handleSubmitBooking,
+    handleBedsRequiredChange,
+    handleDateChange: setDate,
+    handleBooking,
+    setDate
   };
 };
 

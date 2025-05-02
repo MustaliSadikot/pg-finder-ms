@@ -62,7 +62,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
             <div className="space-y-4">
               <RoomSelector 
                 rooms={rooms} 
-                selectedRoom={selectedRoom} 
+                selectedRoom={selectedRoom || ""} 
                 onRoomChange={handleRoomChange} 
                 isLoadingRooms={isLoadingRooms} 
               />
@@ -78,7 +78,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ listing }) => {
 
                   {bedsRequired > 0 && availableBedCount > 0 && (
                     <BedSelector 
-                      beds={beds}
+                      beds={beds[selectedRoom] || []}
                       selectedBeds={selectedBeds}
                       bedsRequired={bedsRequired}
                     />

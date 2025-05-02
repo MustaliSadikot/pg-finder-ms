@@ -5,8 +5,9 @@ export const selectAvailableBeds = (
   beds: Bed[],
   bedsRequired: number
 ): { selectedBeds: string[], bedNumbers: number[] } => {
-  const availableBeds = beds.filter(bed => !bed.isOccupied);
-  console.log("Available beds for selection:", availableBeds.map(b => ({ id: b.id, number: b.bedNumber })));
+  // Filter only available beds
+  const availableBeds = beds.filter(bed => !(bed.is_occupied || bed.isOccupied));
+  console.log("Available beds for selection:", availableBeds.map(b => ({ id: b.id, number: b.bedNumber || b.bed_number })));
 
   // Create a shuffled copy of the beds array for random selection
   const shuffledBeds = [...availableBeds].sort(() => 0.5 - Math.random());
@@ -18,14 +19,14 @@ export const selectAvailableBeds = (
   console.log("Selected bed details:", 
     selectedBeds.map(b => ({
       id: b.id,
-      number: b.bedNumber,
-      isOccupied: b.isOccupied
+      number: b.bedNumber || b.bed_number,
+      isOccupied: b.isOccupied || b.is_occupied
     }))
   );
 
   return {
     selectedBeds: selectedBeds.map(bed => bed.id),
-    bedNumbers: selectedBeds.map(bed => bed.bedNumber)
+    bedNumbers: selectedBeds.map(bed => bed.bedNumber || bed.bed_number)
   };
 };
 

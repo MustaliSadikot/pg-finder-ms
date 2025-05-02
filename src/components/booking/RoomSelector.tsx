@@ -31,7 +31,7 @@ const RoomSelector: React.FC<RoomSelectorProps> = ({
         <SelectContent>
           {rooms.map((room) => (
             <SelectItem key={room.id} value={room.id}>
-              Room {room.roomNumber} - {room.totalBeds} beds
+              Room {room.roomNumber} - {room.totalBeds || room.capacity} beds
             </SelectItem>
           ))}
         </SelectContent>
