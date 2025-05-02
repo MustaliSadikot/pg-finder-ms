@@ -294,7 +294,7 @@ export const pgListingsAPI = {
       
       // Filter by gender preference if set
       if (filters.genderPreference && filters.genderPreference !== '') {
-        // Only filter if the user selected a specific preference (not empty string)
+        // Only filter if the user selected a specific preference
         if (listing.genderPreference !== 'any' && listing.genderPreference !== filters.genderPreference) {
           return false;
         }
