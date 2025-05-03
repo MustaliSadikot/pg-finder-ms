@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User, UserRole } from "../types";
 import { authAPI } from "../services/api";
@@ -17,6 +18,7 @@ interface AuthContextType {
   register: (name: string, email: string, password: string, role: UserRole) => Promise<boolean>;
   logout: () => Promise<void>;
   isOwner: () => boolean;
+  isTenant: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -27,6 +29,7 @@ const AuthContext = createContext<AuthContextType>({
   register: async () => false,
   logout: async () => {},
   isOwner: () => false,
+  isTenant: () => false,
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -139,6 +142,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return state.user?.role === 'owner';
   };
 
+  const isTenant = () => {
+    return state.user?.role === 'tenant';
+  };
+
   return (
     <AuthContext.Provider 
       value={{ 
@@ -146,11 +153,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         login, 
         register, 
         logout, 
-        isOwner 
+        isOwner,
+        isTenant
       }}
     >
       {children}
     </AuthContext.Provider>
   );
 };
-

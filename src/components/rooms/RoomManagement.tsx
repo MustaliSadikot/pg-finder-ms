@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Room, Bed as BedType } from "@/types";
 import { roomAPI, bedAPI } from "@/services/roomApi";
@@ -16,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, Bed as BedIcon, Info } from "lucide-react";
+import { Trash2, Plus, BedDouble as BedIcon, Info } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 interface RoomManagementProps {
@@ -44,38 +43,56 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    loadRooms();
+    if (pgId) {
+      console.log("Loading rooms for PG ID:", pgId);
+      loadRooms();
+    }
   }, [pgId]);
 
   const loadRooms = async () => {
+    if (!pgId) {
+      console.log("No PG ID provided");
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
+      console.log("Fetching rooms from API for PG ID:", pgId);
       const roomsData = await roomAPI.getRoomsByPGId(pgId);
+      console.log("Rooms data received:", roomsData);
       setRooms(roomsData);
 
       const bedsData: Record<string, BedType[]> = {};
       for (const room of roomsData) {
+        console.log("Fetching beds for room:", room.id);
         const roomBeds = await bedAPI.getBedsByRoomId(room.id);
+        console.log("Beds for room", room.id, ":", roomBeds);
         bedsData[room.id] = roomBeds;
       }
       setBeds(bedsData);
 
-      const bookings = await bookingsAPI.getPGBookings(pgId);
-      const confirmedBookings = bookings.filter(booking => booking.status === 'confirmed');
-      
-      const bedBookings: Record<string, boolean> = {};
-      confirmedBookings.forEach(booking => {
-        if (booking.bed_id) {
-          bedBookings[booking.bed_id] = true;
-        }
-      });
-      
-      setBedsWithBookings(bedBookings);
+      try {
+        const bookings = await bookingsAPI.getPGBookings(pgId);
+        const confirmedBookings = bookings.filter(booking => booking.status === 'confirmed');
+        
+        const bedBookings: Record<string, boolean> = {};
+        confirmedBookings.forEach(booking => {
+          if (booking.bed_id) {
+            bedBookings[booking.bed_id] = true;
+          }
+        });
+        
+        setBedsWithBookings(bedBookings);
+      } catch (error) {
+        console.error("Error loading bookings:", error);
+        // Continue even if bookings fail to load
+      }
     } catch (error) {
       console.error("Error loading rooms:", error);
       toast({
         title: "Error",
-        description: "Failed to load rooms",
+        description: "Failed to load rooms: " + String(error),
         variant: "destructive",
       });
     } finally {
@@ -94,6 +111,16 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
         return;
       }
 
+      if (!pgId) {
+        toast({
+          title: "Error",
+          description: "PG ID is required",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log("Adding room to PG ID:", pgId);
       // Map frontend fields to database fields
       const room: Omit<Room, "id"> = {
         pg_id: pgId,
@@ -103,6 +130,7 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
       };
 
       const addedRoom = await roomAPI.addRoom(room);
+      console.log("Room added:", addedRoom);
       setRooms([...rooms, addedRoom]);
       
       // Automatically create beds based on totalBeds
@@ -120,6 +148,7 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
       }
       
       const createdBeds = await Promise.all(bedsCreationPromises);
+      console.log("Beds created:", createdBeds);
       const updatedBeds = { ...beds };
       updatedBeds[addedRoom.id] = createdBeds;
       setBeds(updatedBeds);
@@ -137,9 +166,10 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
         description: `Room added successfully with ${totalBedsToCreate} beds`,
       });
     } catch (error) {
+      console.error("Error adding room:", error);
       toast({
         title: "Error",
-        description: "Failed to add room",
+        description: "Failed to add room: " + String(error),
         variant: "destructive",
       });
     }
@@ -411,9 +441,13 @@ const RoomManagement: React.FC<RoomManagementProps> = ({ pgId }) => {
         </div>
       </div>
 
-      {rooms.length === 0 ? (
+      {pgId && rooms.length === 0 ? (
         <div className="text-center p-8 border rounded-md bg-gray-50">
           <p className="text-muted-foreground">No rooms added yet. Start by adding a room.</p>
+        </div>
+      ) : !pgId ? (
+        <div className="text-center p-8 border rounded-md bg-gray-50">
+          <p className="text-muted-foreground">Please select a PG to manage rooms.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
