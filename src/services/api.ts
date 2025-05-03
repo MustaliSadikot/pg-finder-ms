@@ -1,3 +1,4 @@
+
 import { PGListing, User, UserRole, FilterOptions, Booking, BookingWithDetails } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -137,30 +138,43 @@ export const pgListingsAPI = {
   },
 
   addListing: async (listing: Omit<PGListing, 'id'>): Promise<PGListing> => {
-    const { data, error } = await supabase
-      .from('pg_listings')
-      .insert([
-        {
-          owner_id: listing.owner_id || listing.ownerId,
-          name: listing.name,
-          address: listing.address || listing.location,
-          price: listing.price,
-          description: listing.description,
-        },
-      ])
-      .select()
-      .single();
+    try {
+      // Get authenticated user's session to ensure proper authorization
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      if (!sessionData.session) {
+        throw new Error('User not authenticated');
+      }
 
-    if (error) {
+      const { data, error } = await supabase
+        .from('pg_listings')
+        .insert([
+          {
+            owner_id: listing.owner_id || listing.ownerId,
+            name: listing.name,
+            address: listing.address || listing.location,
+            price: listing.price,
+            description: listing.description,
+          },
+        ])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Supabase error adding listing:', error);
+        throw error;
+      }
+
+      // Map the Supabase data to our PGListing type
+      return {
+        ...data,
+        ownerId: data.owner_id,
+        location: data.address,
+      };
+    } catch (error) {
+      console.error('Error adding listing:', error);
       throw error;
     }
-
-    // Map the Supabase data to our PGListing type
-    return {
-      ...data,
-      ownerId: data.owner_id,
-      location: data.address,
-    };
   },
 
   updateListing: async (listing: PGListing): Promise<PGListing> => {
@@ -219,6 +233,7 @@ export const pgListingsAPI = {
   },
 };
 
+// Helper function for filtering listings - make it available at the top level
 export const filterListings = (
   listings: PGListing[],
   filters: FilterOptions
@@ -240,7 +255,7 @@ export const filterListings = (
       return false;
     }
 
-    // Gender preference filter - Fixed comparison by checking for empty string explicitly
+    // Gender preference filter - Fixed comparison
     if (
       filters.genderPreference && 
       filters.genderPreference !== '' && 
@@ -287,7 +302,7 @@ export const bookingsAPI = {
       pg_id: data.pg_id,
       room_id: data.room_id,
       bed_id: data.bed_id,
-      status: data.status,
+      status: data.status as Booking['status'],
       created_at: data.created_at,
       updated_at: data.updated_at,
       tenantId: data.tenant_id,
@@ -315,7 +330,7 @@ export const bookingsAPI = {
       pg_id: data.pg_id,
       room_id: data.room_id,
       bed_id: data.bed_id,
-      status: data.status,
+      status: data.status as Booking['status'],
       created_at: data.created_at,
       updated_at: data.updated_at,
       tenantId: data.tenant_id,
@@ -343,7 +358,7 @@ export const bookingsAPI = {
       pg_id: data.pg_id,
       room_id: data.room_id,
       bed_id: data.bed_id,
-      status: data.status,
+      status: data.status as Booking['status'],
       created_at: data.created_at,
       updated_at: data.updated_at,
       tenantId: data.tenant_id,
@@ -369,7 +384,7 @@ export const bookingsAPI = {
       pg_id: booking.pg_id,
       room_id: booking.room_id,
       bed_id: booking.bed_id,
-      status: booking.status,
+      status: booking.status as Booking['status'],
       created_at: booking.created_at,
       updated_at: booking.updated_at,
       tenantId: booking.tenant_id,
@@ -377,6 +392,11 @@ export const bookingsAPI = {
       roomId: booking.room_id,
       bedId: booking.bed_id,
     }));
+  },
+
+  // Alias for getUserBookings to fix existing code references
+  getTenantBookings: async (userId: string): Promise<Booking[]> => {
+    return bookingsAPI.getUserBookings(userId);
   },
 
   getPGListingsWithDetails: async (): Promise<BookingWithDetails[]> => {
@@ -416,7 +436,7 @@ export const bookingsAPI = {
       pg_id: booking.pg_id,
       room_id: booking.room_id,
       bed_id: booking.bed_id,
-      status: booking.status,
+      status: booking.status as Booking['status'],
       created_at: booking.created_at,
       updated_at: booking.updated_at,
       tenantId: booking.tenant_id,
@@ -445,7 +465,7 @@ export const bookingsAPI = {
       pg_id: booking.pg_id,
       room_id: booking.room_id,
       bed_id: booking.bed_id,
-      status: booking.status,
+      status: booking.status as Booking['status'],
       created_at: booking.created_at,
       updated_at: booking.updated_at,
       tenantId: booking.tenant_id,
@@ -454,4 +474,9 @@ export const bookingsAPI = {
       bedId: booking.bed_id,
     }));
   },
+  
+  // Add alias for addBooking to match code references in useBookingForm.ts
+  addBooking: async (booking: Omit<Booking, 'id'>): Promise<Booking> => {
+    return bookingsAPI.createBooking(booking);
+  }
 };

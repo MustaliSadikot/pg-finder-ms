@@ -33,6 +33,7 @@ import { Loader2, UploadCloud, Link as LinkIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQueryClient } from "@tanstack/react-query";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { supabase } from "@/services/supabase";
 
 const commonAmenities = [
   { id: "wifi", label: "WiFi" },
@@ -145,6 +146,13 @@ const AddListingForm: React.FC = () => {
           setIsSubmitting(false);
           return;
         }
+      }
+
+      // Get auth session first to ensure we have a valid token
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      if (!sessionData.session) {
+        throw new Error("Authentication session is invalid");
       }
 
       // Construct the listing with both backend and frontend properties
