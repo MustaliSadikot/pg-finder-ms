@@ -1,4 +1,3 @@
-
 import { PGListing, User, UserRole, FilterOptions, Booking, BookingWithDetails } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -231,6 +230,28 @@ export const pgListingsAPI = {
       location: listing.address,
     }));
   },
+
+  // Add missing filterListings function
+  filterListings: async (filters: FilterOptions): Promise<PGListing[]> => {
+    // First fetch all listings
+    const { data, error } = await supabase
+      .from('pg_listings')
+      .select('*');
+
+    if (error) {
+      throw error;
+    }
+
+    // Convert database format to PGListing format
+    const listings = data.map(listing => ({
+      ...listing,
+      ownerId: listing.owner_id,
+      location: listing.address,
+    }));
+
+    // Then filter them based on the filters
+    return filterListings(listings, filters);
+  }
 };
 
 // Helper function for filtering listings - make it available at the top level
