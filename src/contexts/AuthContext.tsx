@@ -1,48 +1,65 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { User, AuthState, UserRole } from "../types";
+import { User, UserRole } from "../types";
 import { authAPI } from "../services/api";
-import { useToast } from "@/components/ui/use-toast";
+import { generateUUID } from "../utils/uuidHelper";
 
-interface AuthContextType extends AuthState {
-  login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string, role: UserRole) => Promise<void>;
-  logout: () => Promise<void>;
-  isOwner: () => boolean;
-  isTenant: () => boolean;
+interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+interface AuthContextType {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (name: string, email: string, password: string, role: UserRole) => Promise<boolean>;
+  logout: () => Promise<void>;
+  isOwner: () => boolean;
+}
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [authState, setAuthState] = useState<AuthState>({
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  isAuthenticated: false,
+  isLoading: false,
+  login: async () => false,
+  register: async () => false,
+  logout: async () => {},
+  isOwner: () => false,
+});
+
+export const useAuth = () => useContext(AuthContext);
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
+  children 
+}) => {
+  const [state, setState] = useState<AuthState>({
     user: null,
     isAuthenticated: false,
     isLoading: true,
   });
-  const { toast } = useToast();
 
   useEffect(() => {
-    const initializeAuth = async () => {
+    const initAuth = async () => {
       try {
-        const user = authAPI.getCurrentUser();
+        const currentUser = authAPI.getCurrentUser();
         
-        if (user) {
-          setAuthState({
-            user,
-            isAuthenticated: true,
-            isLoading: false,
-          });
-        } else {
-          setAuthState({
-            user: null,
-            isAuthenticated: false,
-            isLoading: false,
-          });
+        // Ensure user has a properly formatted UUID
+        if (currentUser && (!currentUser.id || currentUser.id.includes('user_'))) {
+          currentUser.id = generateUUID();
+          // Update user in local storage with proper UUID
+          localStorage.setItem('pg_finder_user', JSON.stringify(currentUser));
         }
+        
+        setState({
+          user: currentUser,
+          isAuthenticated: !!currentUser,
+          isLoading: false,
+        });
       } catch (error) {
-        console.error("Auth initialization error:", error);
-        setAuthState({
+        console.error("Error initializing auth:", error);
+        setState({
           user: null,
           isAuthenticated: false,
           isLoading: false,
@@ -50,97 +67,86 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    initializeAuth();
+    initAuth();
   }, []);
 
   const login = async (email: string, password: string) => {
+    setState(prev => ({ ...prev, isLoading: true }));
     try {
       const user = await authAPI.login(email, password);
       
-      setAuthState({
-        user,
+      // Ensure user has a properly formatted UUID
+      if (user && (!user.id || user.id.includes('user_'))) {
+        user.id = generateUUID();
+        // Update user in local storage with proper UUID
+        localStorage.setItem('pg_finder_user', JSON.stringify(user));
+      }
+      
+      setState({
+        user: user,
         isAuthenticated: true,
         isLoading: false,
       });
-      
-      toast({
-        title: "Logged in successfully",
-        description: `Welcome back, ${user.name}!`,
-      });
+      return true;
     } catch (error) {
-      toast({
-        title: "Login failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
-        variant: "destructive",
-      });
-      throw error;
+      console.error("Login error:", error);
+      setState(prev => ({ ...prev, isLoading: false }));
+      return false;
     }
   };
 
   const register = async (name: string, email: string, password: string, role: UserRole) => {
+    setState(prev => ({ ...prev, isLoading: true }));
     try {
       const user = await authAPI.register(name, email, password, role);
       
-      setAuthState({
+      // Ensure user has a properly formatted UUID
+      if (user && (!user.id || user.id.includes('user_'))) {
+        user.id = generateUUID();
+        // Update user in local storage with proper UUID
+        localStorage.setItem('pg_finder_user', JSON.stringify(user));
+      }
+      
+      setState({
         user,
         isAuthenticated: true,
         isLoading: false,
       });
-      
-      toast({
-        title: "Registration successful",
-        description: `Welcome, ${user.name}!`,
-      });
+      return true;
     } catch (error) {
-      toast({
-        title: "Registration failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
-        variant: "destructive",
-      });
-      throw error;
+      console.error("Registration error:", error);
+      setState(prev => ({ ...prev, isLoading: false }));
+      return false;
     }
   };
 
   const logout = async () => {
+    setState(prev => ({ ...prev, isLoading: true }));
     try {
       await authAPI.logout();
-      
-      setAuthState({
+      setState({
         user: null,
         isAuthenticated: false,
         isLoading: false,
       });
-      
-      toast({
-        title: "Logged out",
-        description: "You have been successfully logged out.",
-      });
     } catch (error) {
-      toast({
-        title: "Logout failed",
-        description: "Failed to log out. Please try again.",
-        variant: "destructive",
-      });
+      console.error("Logout error:", error);
+      setState(prev => ({ ...prev, isLoading: false }));
     }
   };
 
   const isOwner = () => {
-    return authState.user?.role === 'owner';
-  };
-
-  const isTenant = () => {
-    return authState.user?.role === 'tenant';
+    return state.user?.role === 'owner';
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        ...authState,
-        login,
-        register,
-        logout,
-        isOwner,
-        isTenant,
+    <AuthContext.Provider 
+      value={{ 
+        ...state, 
+        login, 
+        register, 
+        logout, 
+        isOwner 
       }}
     >
       {children}
@@ -148,12 +154,3 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  
-  return context;
-};
