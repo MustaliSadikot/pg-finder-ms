@@ -102,7 +102,6 @@ export const authAPI = {
             full_name: name,
             role: role
           },
-          // For development, you might want to disable email confirmation
           emailRedirectTo: window.location.origin + '/login'
         }
       });
@@ -116,8 +115,8 @@ export const authAPI = {
         throw new Error("User not found after successful registration");
       }
 
+      // Insert user details into the 'profiles' table
       try {
-        // Insert user details into the 'profiles' table
         const { error: profileError } = await supabase
           .from('profiles')
           .insert([
@@ -127,8 +126,7 @@ export const authAPI = {
               email: email,
               role: role,
             },
-          ])
-          .select();
+          ]);
 
         if (profileError) {
           console.error("Error creating profile:", profileError);
@@ -137,18 +135,20 @@ export const authAPI = {
         console.error("Error in profile creation:", err);
       }
 
-      // Auto-confirm user for development
+      // Auto-login after registration
       try {
-        // This is for development purposes - in production, the user would confirm via email
-        const autoConfirmResult = await supabase.auth.signInWithPassword({
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email: email,
           password: password,
         });
         
-        console.log("Auto-confirm login attempt:", autoConfirmResult);
+        if (signInError) {
+          console.error("Auto-login failed:", signInError);
+        } else {
+          console.log("Auto-login successful:", signInData);
+        }
       } catch (confirmErr) {
-        console.log("Auto-confirm failed:", confirmErr);
-        // Continue even if auto-confirm fails
+        console.log("Auto-login failed:", confirmErr);
       }
 
       const user: User = {
@@ -171,27 +171,30 @@ export const authAPI = {
 
   logout: async (): Promise<void> => {
     try {
-      // Attempt a global signout to clear all sessions
+      // Clear all local storage items related to authentication first
+      localStorage.removeItem('pg_finder_user');
+      localStorage.removeItem('pgfinder_auth');
+      
+      // Remove all Supabase auth keys from localStorage
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      // Attempt a global signout to clear all sessions from the server
       const { error } = await supabase.auth.signOut({ scope: 'global' });
 
       if (error) {
         console.error("Error during signout:", error);
         throw error;
       }
-
-      // Remove user info from local storage
-      localStorage.removeItem('pg_finder_user');
-      
-      // Clean up any other auth-related items
-      Object.keys(localStorage).forEach((key) => {
-        if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-          localStorage.removeItem(key);
-        }
-      });
     } catch (error) {
       console.error("Logout failure:", error);
+      
       // Even if there's an error, we should clear local storage
       localStorage.removeItem('pg_finder_user');
+      localStorage.removeItem('pgfinder_auth');
       throw error;
     }
   },

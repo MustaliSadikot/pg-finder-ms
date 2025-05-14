@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User, UserRole } from "../types";
 import { authAPI } from "../services/api";
@@ -63,23 +64,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   });
   const { toast } = useToast();
 
+  // Initialize authentication state
   useEffect(() => {
     const initAuth = async () => {
       try {
-        const currentUser = authAPI.getCurrentUser();
+        // First get the current session from Supabase
+        const { data: sessionData } = await supabase.auth.getSession();
         
-        // Ensure user has a properly formatted UUID
-        if (currentUser && (!currentUser.id || !isValidUUID(currentUser.id))) {
-          currentUser.id = generateUUID();
-          // Update user in local storage with proper UUID
-          localStorage.setItem('pg_finder_user', JSON.stringify(currentUser));
+        if (sessionData?.session) {
+          console.log("Found existing session:", sessionData.session.user.email);
+          
+          // We have a valid session, try to get or create user data
+          let currentUser = authAPI.getCurrentUser();
+          
+          if (!currentUser && sessionData.session.user) {
+            // Create a user object from session data
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', sessionData.session.user.id)
+              .single();
+              
+            if (profile) {
+              currentUser = {
+                id: profile.id,
+                name: profile.full_name || 'User',
+                email: profile.email || sessionData.session.user.email || '',
+                role: (profile.role as UserRole) || 'tenant'
+              };
+              
+              // Store in local storage
+              localStorage.setItem('pg_finder_user', JSON.stringify(currentUser));
+            }
+          }
+          
+          // Ensure user has a properly formatted UUID
+          if (currentUser && (!currentUser.id || !isValidUUID(currentUser.id))) {
+            currentUser.id = generateUUID();
+            // Update user in local storage with proper UUID
+            localStorage.setItem('pg_finder_user', JSON.stringify(currentUser));
+          }
+          
+          setState({
+            user: currentUser,
+            isAuthenticated: !!currentUser,
+            isLoading: false,
+          });
+        } else {
+          // No valid session
+          cleanupAuthState();
+          setState({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+          });
         }
-        
-        setState({
-          user: currentUser,
-          isAuthenticated: !!currentUser,
-          isLoading: false,
-        });
       } catch (error) {
         console.error("Error initializing auth:", error);
         setState({
@@ -101,16 +140,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         
         if (event === 'SIGNED_IN' && session) {
           // Update the user state when signed in
-          const user = authAPI.getCurrentUser();
-          if (user) {
-            setState({
-              user,
-              isAuthenticated: true,
-              isLoading: false
-            });
-          }
+          setTimeout(async () => {
+            const user = authAPI.getCurrentUser();
+            if (user) {
+              setState({
+                user,
+                isAuthenticated: true,
+                isLoading: false
+              });
+            } else if (session.user) {
+              // Try to get from profiles
+              try {
+                const { data: profile } = await supabase
+                  .from('profiles')
+                  .select('*')
+                  .eq('id', session.user.id)
+                  .single();
+                  
+                if (profile) {
+                  const newUser = {
+                    id: profile.id,
+                    name: profile.full_name || 'User',
+                    email: profile.email || session.user.email || '',
+                    role: (profile.role as UserRole) || 'tenant'
+                  };
+                  
+                  // Store in local storage
+                  localStorage.setItem('pg_finder_user', JSON.stringify(newUser));
+                  
+                  setState({
+                    user: newUser,
+                    isAuthenticated: true,
+                    isLoading: false
+                  });
+                }
+              } catch (err) {
+                console.error("Error fetching profile:", err);
+              }
+            }
+          }, 0);
         } else if (event === 'SIGNED_OUT') {
           // Clear user state when signed out
+          cleanupAuthState();
           setState({
             user: null,
             isAuthenticated: false,

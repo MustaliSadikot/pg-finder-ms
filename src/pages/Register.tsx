@@ -23,8 +23,11 @@ const Register: React.FC = () => {
         description: errorDescription || "There was an error during registration. Please try again.",
         variant: "destructive",
       });
+      
+      // Clear URL parameters after displaying the error
+      navigate('/register', { replace: true });
     }
-  }, [toast]);
+  }, [toast, navigate]);
 
   if (isLoading) {
     return (
