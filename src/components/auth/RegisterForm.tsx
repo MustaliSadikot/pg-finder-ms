@@ -24,6 +24,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserRole } from "@/types";
+import { useToast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -39,8 +40,9 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 const RegisterForm: React.FC = () => {
-  const { register } = useAuth();
+  const { register, isLoading } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -55,10 +57,18 @@ const RegisterForm: React.FC = () => {
 
   const onSubmit = async (data: FormData) => {
     try {
-      await register(data.name, data.email, data.password, data.role as UserRole);
-      navigate("/dashboard");
-    } catch (error) {
+      const success = await register(data.name, data.email, data.password, data.role as UserRole);
+      
+      if (success) {
+        navigate("/dashboard");
+      }
+    } catch (error: any) {
       console.error("Registration error:", error);
+      toast({
+        title: "Registration failed",
+        description: error?.message || "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -159,8 +169,8 @@ const RegisterForm: React.FC = () => {
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full">
-              Register
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Registering..." : "Register"}
             </Button>
           </form>
         </Form>

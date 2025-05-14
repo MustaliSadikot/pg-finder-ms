@@ -78,6 +78,13 @@ export const authAPI = {
 
   register: async (name: string, email: string, password: string, role: UserRole): Promise<User> => {
     try {
+      // Before registering, clean up any existing session
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        console.log("Pre-registration signout failed, continuing with registration");
+      }
+      
       // Sign up with email and password
       const { data, error } = await supabase.auth.signUp({
         email: email,
@@ -86,11 +93,13 @@ export const authAPI = {
           data: {
             full_name: name,
             role: role
-          }
+          },
+          emailRedirectTo: window.location.origin + '/login'
         }
       });
 
       if (error) {
+        console.error("Signup Error:", error);
         throw error;
       }
 
@@ -147,6 +156,13 @@ export const authAPI = {
 
       // Remove user info from local storage
       localStorage.removeItem('pg_finder_user');
+      
+      // Clean up any other auth-related items
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+          localStorage.removeItem(key);
+        }
+      });
     } catch (error) {
       console.error("Logout failure:", error);
       // Even if there's an error, we should clear local storage

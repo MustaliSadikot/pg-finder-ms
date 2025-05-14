@@ -1,36 +1,46 @@
 
-import { PGListing, FilterOptions } from "@/types";
+import { FilterOptions, PGListing } from '@/types';
 
-export const filterListings = (
-  listings: PGListing[],
-  filters: FilterOptions
-): PGListing[] => {
-  return listings.filter((listing) => {
+export const filterListings = (listings: PGListing[], filter: FilterOptions) => {
+  return listings.filter(listing => {
     // Price filter
-    const isPriceInRange =
-      listing.price >= filters.priceRange.min &&
-      listing.price <= filters.priceRange.max;
+    if (
+      listing.price < filter.priceRange.min ||
+      listing.price > filter.priceRange.max
+    ) {
+      return false;
+    }
 
     // Location filter
-    const isLocationMatch =
-      !filters.location ||
-      listing.address.toLowerCase().includes(filters.location.toLowerCase());
+    if (
+      filter.location &&
+      !listing.address.toLowerCase().includes(filter.location.toLowerCase())
+    ) {
+      return false;
+    }
 
     // Gender preference filter
-    const isGenderMatch =
-      !filters.genderPreference ||
-      filters.genderPreference === "" ||
-      listing.genderPreference === filters.genderPreference ||
-      listing.genderPreference === "any";
+    if (
+      filter.genderPreference && 
+      filter.genderPreference !== '' && 
+      listing.genderPreference && 
+      listing.genderPreference !== filter.genderPreference &&
+      filter.genderPreference !== 'any'
+    ) {
+      return false;
+    }
 
     // Amenities filter
-    const hasAmenities =
-      filters.amenities.length === 0 ||
-      (listing.amenities &&
-        filters.amenities.every((amenity) =>
-          listing.amenities?.includes(amenity)
-        ));
+    if (
+      filter.amenities.length > 0 &&
+      listing.amenities &&
+      !filter.amenities.every(amenity =>
+        listing.amenities?.includes(amenity)
+      )
+    ) {
+      return false;
+    }
 
-    return isPriceInRange && isLocationMatch && isGenderMatch && hasAmenities;
+    return true;
   });
 };

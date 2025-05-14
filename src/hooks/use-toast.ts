@@ -1,3 +1,5 @@
+
+// Duplicate the contents from components/ui/use-toast.ts to ensure consistency
 import * as React from "react"
 
 import type {
