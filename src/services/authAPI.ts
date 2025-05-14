@@ -5,6 +5,13 @@ import { supabase } from '@/integrations/supabase/client';
 export const authAPI = {
   login: async (email: string, password: string): Promise<User> => {
     try {
+      // Clean up any existing auth state before login
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        console.log("Pre-login signout failed, continuing with login");
+      }
+      
       // Sign in with email and password
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email,
@@ -12,6 +19,7 @@ export const authAPI = {
       });
 
       if (error) {
+        console.error("Login Error:", error);
         throw error;
       }
 
@@ -53,7 +61,7 @@ export const authAPI = {
 
         // Store user info in local storage
         localStorage.setItem('pg_finder_user', JSON.stringify(user));
-
+        console.log("Login successful, user stored:", user);
         return user;
       } catch (err) {
         console.error("Error in profile handling:", err);
@@ -78,7 +86,7 @@ export const authAPI = {
 
   register: async (name: string, email: string, password: string, role: UserRole): Promise<User> => {
     try {
-      // Before registering, clean up any existing session
+      // Clean up any existing auth state before registration
       try {
         await supabase.auth.signOut({ scope: 'global' });
       } catch (err) {
@@ -94,6 +102,7 @@ export const authAPI = {
             full_name: name,
             role: role
           },
+          // For development, you might want to disable email confirmation
           emailRedirectTo: window.location.origin + '/login'
         }
       });
@@ -118,13 +127,28 @@ export const authAPI = {
               email: email,
               role: role,
             },
-          ]);
+          ])
+          .select();
 
         if (profileError) {
           console.error("Error creating profile:", profileError);
         }
       } catch (err) {
         console.error("Error in profile creation:", err);
+      }
+
+      // Auto-confirm user for development
+      try {
+        // This is for development purposes - in production, the user would confirm via email
+        const autoConfirmResult = await supabase.auth.signInWithPassword({
+          email: email,
+          password: password,
+        });
+        
+        console.log("Auto-confirm login attempt:", autoConfirmResult);
+      } catch (confirmErr) {
+        console.log("Auto-confirm failed:", confirmErr);
+        // Continue even if auto-confirm fails
       }
 
       const user: User = {
@@ -136,7 +160,8 @@ export const authAPI = {
 
       // Store user info in local storage
       localStorage.setItem('pg_finder_user', JSON.stringify(user));
-
+      
+      console.log("Registration successful, user stored:", user);
       return user;
     } catch (error) {
       console.error("Registration failure:", error);

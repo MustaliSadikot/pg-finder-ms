@@ -1,9 +1,9 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User, UserRole } from "../types";
 import { authAPI } from "../services/api";
 import { generateUUID, isValidUUID } from "../utils/uuidHelper";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AuthState {
   user: User | null;
@@ -93,20 +93,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     initAuth();
   }, []);
 
+  // Listen for auth state changes from Supabase
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        console.log("Auth state changed:", event, session?.user?.email);
+        
+        if (event === 'SIGNED_IN' && session) {
+          // Update the user state when signed in
+          const user = authAPI.getCurrentUser();
+          if (user) {
+            setState({
+              user,
+              isAuthenticated: true,
+              isLoading: false
+            });
+          }
+        } else if (event === 'SIGNED_OUT') {
+          // Clear user state when signed out
+          setState({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false
+          });
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
   const login = async (email: string, password: string) => {
     setState(prev => ({ ...prev, isLoading: true }));
     try {
       // Clean up existing auth state before login
       cleanupAuthState();
       
-      // Attempt global sign out
-      try {
-        await authAPI.logout();
-      } catch (err) {
-        // Continue even if this fails
-        console.log("Pre-login signout failed, continuing with login");
-      }
-      
+      // Attempt login
       const user = await authAPI.login(email, password);
       
       // Ensure user has a properly formatted UUID
@@ -153,14 +178,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // Clean up existing auth state before registration
       cleanupAuthState();
       
-      // Attempt global sign out
-      try {
-        await authAPI.logout();
-      } catch (err) {
-        // Continue even if this fails
-        console.log("Pre-registration signout failed, continuing with registration");
-      }
-      
+      // Register and automatically log in
       const user = await authAPI.register(name, email, password, role);
       
       // Ensure user has a properly formatted UUID

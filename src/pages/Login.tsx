@@ -4,12 +4,43 @@ import Layout from "@/components/common/Layout";
 import LoginForm from "@/components/auth/LoginForm";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const Login: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const from = location.state?.from || "/dashboard";
+
+  // Check for URL params that might indicate login/auth issues
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const error = params.get('error');
+    const errorDescription = params.get('error_description');
+    
+    if (error) {
+      toast({
+        title: "Authentication Error",
+        description: errorDescription || "There was an error during authentication. Please try again.",
+        variant: "destructive",
+      });
+      
+      // Clear the URL parameters
+      navigate('/login', { replace: true });
+    }
+  }, [location, toast, navigate]);
+
+  // Effect to get current session
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      console.log("Current session check:", sessionData.session?.user?.email || "No session");
+    };
+    
+    checkSession();
+  }, []);
 
   // Effect to redirect authenticated users
   useEffect(() => {
