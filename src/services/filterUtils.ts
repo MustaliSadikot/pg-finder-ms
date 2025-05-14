@@ -22,10 +22,9 @@ export const filterListings = (listings: PGListing[], filter: FilterOptions) => 
     // Gender preference filter
     if (
       filter.genderPreference && 
-      filter.genderPreference !== '' && 
+      filter.genderPreference !== 'any' && 
       listing.genderPreference && 
-      listing.genderPreference !== filter.genderPreference &&
-      filter.genderPreference !== 'any'
+      listing.genderPreference !== filter.genderPreference
     ) {
       return false;
     }

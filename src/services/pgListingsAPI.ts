@@ -45,24 +45,19 @@ export const pgListingsAPI = {
 
   addListing: async (listing: Omit<PGListing, 'id'>): Promise<PGListing> => {
     try {
-      // Get authenticated user's session to ensure proper authorization
-      const { data: sessionData } = await supabase.auth.getSession();
-      
-      if (!sessionData.session) {
-        throw new Error('User not authenticated');
-      }
+      // Create the Supabase-compatible object
+      const supabaseListing = {
+        owner_id: listing.ownerId || listing.owner_id,
+        name: listing.name,
+        address: listing.location || listing.address,
+        price: listing.price,
+        description: listing.description,
+      };
 
+      // Insert the new listing
       const { data, error } = await supabase
         .from('pg_listings')
-        .insert([
-          {
-            owner_id: listing.owner_id || listing.ownerId,
-            name: listing.name,
-            address: listing.address || listing.location,
-            price: listing.price,
-            description: listing.description,
-          },
-        ])
+        .insert([supabaseListing])
         .select()
         .single();
 
