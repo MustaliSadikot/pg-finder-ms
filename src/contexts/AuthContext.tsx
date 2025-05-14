@@ -35,6 +35,24 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
+// Helper function to clean up auth state in localStorage
+const cleanupAuthState = () => {
+  // Remove standard auth tokens
+  localStorage.removeItem('supabase.auth.token');
+  // Remove all Supabase auth keys from localStorage
+  Object.keys(localStorage).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      localStorage.removeItem(key);
+    }
+  });
+  // Remove from sessionStorage if in use
+  Object.keys(sessionStorage || {}).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      sessionStorage.removeItem(key);
+    }
+  });
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   children 
 }) => {
@@ -78,6 +96,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const login = async (email: string, password: string) => {
     setState(prev => ({ ...prev, isLoading: true }));
     try {
+      // Clean up existing auth state before login
+      cleanupAuthState();
+      
+      // Attempt global sign out
+      try {
+        await authAPI.logout();
+      } catch (err) {
+        // Continue even if this fails
+        console.log("Pre-login signout failed, continuing with login");
+      }
+      
       const user = await authAPI.login(email, password);
       
       // Ensure user has a properly formatted UUID
@@ -102,13 +131,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       localStorage.setItem('pgfinder_auth', 'authenticated');
       
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error:", error);
       setState(prev => ({ ...prev, isLoading: false }));
       
+      const errorMessage = error?.message || "Invalid email or password. Please try again.";
+      
       toast({
         title: "Login Failed",
-        description: "Invalid email or password. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
       
@@ -119,6 +150,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const register = async (name: string, email: string, password: string, role: UserRole) => {
     setState(prev => ({ ...prev, isLoading: true }));
     try {
+      // Clean up existing auth state before registration
+      cleanupAuthState();
+      
+      // Attempt global sign out
+      try {
+        await authAPI.logout();
+      } catch (err) {
+        // Continue even if this fails
+        console.log("Pre-registration signout failed, continuing with registration");
+      }
+      
       const user = await authAPI.register(name, email, password, role);
       
       // Ensure user has a properly formatted UUID
@@ -143,13 +185,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       });
       
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Registration error:", error);
       setState(prev => ({ ...prev, isLoading: false }));
       
+      const errorMessage = error?.message || "Could not create your account. Please try again.";
+      
       toast({
         title: "Registration Failed",
-        description: "Could not create your account. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
       
@@ -160,7 +204,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const logout = async () => {
     setState(prev => ({ ...prev, isLoading: true }));
     try {
+      // Clean up auth state
+      cleanupAuthState();
+      
+      // Perform logout
       await authAPI.logout();
+      
       setState({
         user: null,
         isAuthenticated: false,

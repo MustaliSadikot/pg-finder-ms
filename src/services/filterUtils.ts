@@ -1,45 +1,36 @@
 
-import { PGListing, FilterOptions } from '@/types';
+import { PGListing, FilterOptions } from "@/types";
 
-// Helper function for filtering listings
 export const filterListings = (
   listings: PGListing[],
   filters: FilterOptions
 ): PGListing[] => {
   return listings.filter((listing) => {
     // Price filter
-    if (
-      listing.price < filters.priceRange.min ||
-      listing.price > filters.priceRange.max
-    ) {
-      return false;
-    }
+    const isPriceInRange =
+      listing.price >= filters.priceRange.min &&
+      listing.price <= filters.priceRange.max;
 
     // Location filter
-    if (
-      filters.location &&
-      !listing.location?.toLowerCase().includes(filters.location.toLowerCase())
-    ) {
-      return false;
-    }
+    const isLocationMatch =
+      !filters.location ||
+      listing.address.toLowerCase().includes(filters.location.toLowerCase());
 
-    // Gender preference filter - Fixed comparison
-    if (
-      filters.genderPreference && 
-      filters.genderPreference !== '' && 
-      listing.genderPreference !== filters.genderPreference
-    ) {
-      return false;
-    }
+    // Gender preference filter
+    const isGenderMatch =
+      !filters.genderPreference ||
+      filters.genderPreference === "" ||
+      listing.genderPreference === filters.genderPreference ||
+      listing.genderPreference === "any";
 
     // Amenities filter
-    if (filters.amenities.length > 0) {
-      const listingAmenities = listing.amenities || [];
-      if (!filters.amenities.every((a) => listingAmenities.includes(a))) {
-        return false;
-      }
-    }
+    const hasAmenities =
+      filters.amenities.length === 0 ||
+      (listing.amenities &&
+        filters.amenities.every((amenity) =>
+          listing.amenities?.includes(amenity)
+        ));
 
-    return true;
+    return isPriceInRange && isLocationMatch && isGenderMatch && hasAmenities;
   });
 };
